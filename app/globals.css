@@ -1,0 +1,100 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+/* ── Design System — Lifer ───────────────────────────── */
+
+:root {
+  /* Backgrounds */
+  --bg:          #0e0b07;
+  --surface:     #17120c;
+  --surface-2:   #1f1912;
+
+  /* Text */
+  --text:        #f5e8d0;
+  --muted:       rgba(245, 232, 208, 0.48);
+
+  /* Borders */
+  --border:      rgba(212, 131, 12, 0.16);
+  --border-2:    rgba(245, 232, 208, 0.07);
+
+  /* Accent — amber from the larch trees */
+  --accent:      #d4830c;
+  --accent-2:    #e8a020;
+  --accent-deep: #8b3a0f;
+
+  /* Supporting */
+  --forest:      #2d4a1e;
+  --stone:       #7a8585;
+  --sky:         #87aece;
+
+  /* Status */
+  --success:     #4d9e3a;
+  --warning:     #d4830c;
+  --error:       #c0391b;
+  --info:        #87aece;
+
+  /* Legacy bench vars — kept for WebsitePreview only */
+  --bench-bg:     #1a140e;
+  --bench-panel:  #221b13;
+  --bench-border: #3a2e1e;
+  --bench-shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 16px rgba(0,0,0,0.25);
+  --bench-dark:   #0e0b07;
+  --bench-mid:    #7a6040;
+  --bench-muted:  #a08060;
+
+  /* Font families */
+  --font-heading: 'Playfair Display', Georgia, serif;
+  --font-body:    'Inter', system-ui, sans-serif;
+
+  /* Legacy compat */
+  --card:          var(--surface);
+  --text-secondary: rgba(245, 232, 208, 0.6);
+  --text-muted:     rgba(245, 232, 208, 0.38);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-heading);
+}
+
+/* Pegboard texture */
+.pegboard {
+  background-color: var(--bench-bg);
+  background-image: radial-gradient(
+    circle,
+    rgba(180, 130, 60, 0.12) 1.5px,
+    transparent 1.5px
+  );
+  background-size: 24px 24px;
+}
+
+/* Elevated panel */
+.bench-panel {
+  background: var(--bench-panel);
+  border: 1px solid var(--bench-border);
+  box-shadow: var(--bench-shadow);
+}
+
+/* Thin header rail */
+.bench-rail {
+  background: var(--bench-panel);
+  border-bottom: 1px solid var(--bench-border);
+  box-shadow: 0 1px 0 rgba(0,0,0,0.15);
+}
+
+/* Blueprint grid texture */
+.blueprint {
+  background-image:
+    linear-gradient(rgba(212,131,12,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(212,131,12,0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+}

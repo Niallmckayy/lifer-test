@@ -1,0 +1,127 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  role      Role     @default(CUSTOMER)
+  client    Client?
+  createdAt DateTime @default(now())
+}
+
+enum Role {
+  ADMIN
+  CUSTOMER
+}
+
+model Client {
+  id                   String          @id @default(cuid())
+  name                 String
+  plan                 String          @default("Starter")
+  status               String          @default("Active")
+  requestLimit         Int             @default(10)
+  userId               String          @unique
+  user                 User            @relation(fields: [userId], references: [id])
+  website              Website?
+  requests             ChangeRequest[]
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  stripePriceId        String?
+  subscriptionStatus   String?         @default("active")
+  convertedFromProspect Prospect?
+  createdAt            DateTime        @default(now())
+}
+
+model Website {
+  id             String    @id @default(cuid())
+  name           String
+  slug           String    @unique
+  clientId       String    @unique
+  client         Client    @relation(fields: [clientId], references: [id])
+  liveVersionId  String?   @unique
+  liveVersion    Version?  @relation("LiveVersion",  fields: [liveVersionId],  references: [id])
+  draftVersionId String?   @unique
+  draftVersion   Version?  @relation("DraftVersion", fields: [draftVersionId], references: [id])
+  versions       Version[] @relation("AllVersions")
+  htmlContent      String?
+  draftHtmlContent String?
+  contentBrief      String?
+  draftContentBrief String?
+  previewUrl        String?
+  githubRepo      String?           // e.g. "Niallmckayy/mk-architects-redesign"
+  githubBranch    String?           @default("main")
+  vercelProjectId String?
+  vercelTeamId    String?
+  createdAt       DateTime  @default(now())
+}
+
+model Version {
+  id             String    @id @default(cuid())
+  headline       String
+  subheading     String
+  about          String
+  services       String
+  websiteId      String
+  website        Website   @relation("AllVersions",  fields: [websiteId], references: [id])
+  liveOnWebsite  Website?  @relation("LiveVersion")
+  draftOnWebsite Website?  @relation("DraftVersion")
+  createdAt      DateTime  @default(now())
+}
+
+model ChangeRequest {
+  id             String        @id @default(cuid())
+  message        String
+  status         RequestStatus @default(PENDING)
+  clientId       String
+  client         Client        @relation(fields: [clientId], references: [id])
+  websiteId      String
+  githubBranch   String?
+  draftPreviewUrl String?
+  githubPrNumber Int?
+  githubPrUrl    String?
+  createdAt      DateTime      @default(now())
+}
+
+enum RequestStatus {
+  PENDING
+  DRAFT
+  APPROVED
+  DEPLOYED
+  DENIED
+}
+
+model Prospect {
+  id                  String         @id @default(cuid())
+  businessName        String
+  industry            String
+  description         String
+  slug                String         @unique
+  status              ProspectStatus @default(GENERATING)
+  deploymentUrl       String?
+  githubRepo          String?
+  vercelProjectId     String?
+  htmlContent         String?
+  contentBrief        String?
+  prospectEmail       String?
+  notes               String?
+  convertedToClientId String?        @unique
+  convertedClient     Client?        @relation(fields: [convertedToClientId], references: [id])
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+}
+
+enum ProspectStatus {
+  GENERATING
+  PREVIEW
+  READY
+  ERROR
+  CONVERTED
+  ARCHIVED
+}
