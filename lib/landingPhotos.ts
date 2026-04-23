@@ -1,6 +1,7 @@
 export const LANDING_PHOTOS = {
   hero: 'https://images.unsplash.com/photo-1697804782617-2e42fdda08f2?auto=format&fit=crop&w=2400&q=85',
   loginPanel: 'https://images.unsplash.com/photo-1768732861302-74076b8c8cb7?auto=format&fit=crop&w=1200&q=85',
+  loginPanel2: 'https://images.unsplash.com/photo-1507041957456-9c397ce39c97?auto=format&fit=crop&w=1200&q=85',
   portfolio: [
     'https://images.unsplash.com/photo-1645980096331-e799255c5e10?auto=format&fit=crop&w=800&q=80',
     'https://images.unsplash.com/photo-1763124320174-afe6a0553acd?auto=format&fit=crop&w=800&q=80',

@@ -30,6 +30,7 @@ interface Props {
   draftHasGithub: boolean
   draftPreviewUrl: string | null
   draftPrUrl: string | null
+  hasHtmlContent: boolean
   contentBrief: string | null
   draftContentBrief: string | null
   usedRequests: number
@@ -44,6 +45,7 @@ export default function CustomerDashboardClient({
   websiteSlug,
   websiteUrl,
   previewUrl: externalUrl,
+  hasHtmlContent,
   hasDraft,
   draftRequestId,
   draftHasGithub,
@@ -70,7 +72,7 @@ export default function CustomerDashboardClient({
   const iframeSrc =
     activeMode === 'draft'
       ? (draftPreviewUrl ?? internalDraftUrl)
-      : (externalUrl ?? internalLiveUrl)
+      : (hasHtmlContent ? internalLiveUrl : (externalUrl ?? internalLiveUrl))
 
   const atLimit = usedRequests >= requestLimit
   const pct = Math.min((usedRequests / requestLimit) * 100, 100)

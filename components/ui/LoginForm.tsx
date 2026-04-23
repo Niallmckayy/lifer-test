@@ -95,12 +95,6 @@ export default function LoginForm() {
         {loading ? 'Signing in…' : 'Sign in'}
       </button>
 
-      <p className="text-xs text-center leading-relaxed mt-1" style={{ color: 'rgba(255,255,255,0.25)' }}>
-        Demo:{' '}
-        <span style={{ color: 'rgba(255,255,255,0.45)' }}>admin@example.com</span> / admin123
-        {' '}·{' '}
-        <span style={{ color: 'rgba(255,255,255,0.45)' }}>mk@example.com</span> / customer123
-      </p>
     </form>
   )
 }

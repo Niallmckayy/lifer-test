@@ -5,7 +5,9 @@ import { getAdminDashboardData } from '@/lib/actions'
 import AdminActions from './AdminActions'
 import AdminBillingForm from './AdminBillingForm'
 import AdminDeploymentForm from './AdminDeploymentForm'
+import AdminImportForm from './AdminImportForm'
 import DeleteClientButton from './DeleteClientButton'
+import AdminResetPasswordButton from './AdminResetPasswordButton'
 import SignOutButton from '@/components/ui/SignOutButton'
 import BirdLogo from '@/components/ui/BirdLogo'
 
@@ -159,7 +161,9 @@ export default async function AdminDashboard() {
                   <Th>Draft</Th>
                   <Th>Website</Th>
                   <Th>Deployment</Th>
+                  <Th>Import</Th>
                   <Th>Billing</Th>
+                  <Th>Password</Th>
                   <Th>{''}</Th>
                 </tr>
               </thead>
@@ -219,6 +223,12 @@ export default async function AdminDashboard() {
                       />
                     </td>
                     <td className="px-5 py-4">
+                      <AdminImportForm
+                        websiteId={(client as { website?: { id?: string } }).website?.id ?? ''}
+                        hasImport={!!(client as { website?: { htmlContent?: string | null } }).website?.htmlContent}
+                      />
+                    </td>
+                    <td className="px-5 py-4">
                       <AdminBillingForm
                         clientId={client.id}
                         stripeCustomerId={(client as { stripeCustomerId?: string | null }).stripeCustomerId ?? null}
@@ -227,6 +237,9 @@ export default async function AdminDashboard() {
                         requestLimit={client.requestLimit}
                         subscriptionStatus={(client as { subscriptionStatus?: string | null }).subscriptionStatus ?? null}
                       />
+                    </td>
+                    <td className="px-5 py-4">
+                      <AdminResetPasswordButton clientId={client.id} />
                     </td>
                     <td className="px-5 py-4">
                       <DeleteClientButton clientId={client.id} clientName={client.name} />

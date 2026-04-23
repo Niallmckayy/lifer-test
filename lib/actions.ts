@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/prisma'
+import bcrypt from 'bcryptjs'
 import { generateContentUpdate, generateUpdatedBrief, ContentBrief } from '@/lib/claude'
 import { sendDraftReadyEmail, sendDeployedEmail } from '@/lib/email'
 import { createBranch, commitContent, createPullRequest as ghCreatePR, mergePullRequest as ghMergePR } from '@/lib/github'
@@ -27,8 +28,42 @@ export async function submitChangeRequest(
 
   const websiteContentBrief = (website as { contentBrief?: string | null } | null)?.contentBrief
 
-  if (website && websiteContentBrief) {
-    // ── HTML pipeline (prospect-claimed sites) ──────────────
+  if (website?.htmlContent) {
+    // ── Path C: imported HTML — direct AI modification ──────
+    // Takes priority: if the site has stored HTML, always patch it directly.
+    let draftHtml: string
+    try {
+      const { generateHtmlModification } = await import('./claude')
+      draftHtml = await generateHtmlModification(website.htmlContent, message)
+    } catch (err) {
+      console.error('HTML modification error:', err)
+      await prisma.changeRequest.update({ where: { id: request.id }, data: { status: 'PENDING' } })
+      revalidatePath('/dashboard/customer')
+      return { requestId: request.id, error: 'AI generation failed — your request has been saved and will be reviewed manually.' }
+    }
+
+    await prisma.website.update({
+      where: { id: websiteId },
+      data: { draftHtmlContent: draftHtml },
+    })
+
+    await prisma.changeRequest.update({
+      where: { id: request.id },
+      data: { status: 'DRAFT' },
+    })
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ''
+    const clientEmail = website.client?.user?.email
+    if (clientEmail) {
+      void sendDraftReadyEmail(
+        clientEmail,
+        website.client!.name,
+        `${appUrl}/dashboard/customer`,
+      ).catch(console.error)
+    }
+
+  } else if (website && websiteContentBrief) {
+    // ── Path A: HTML pipeline (prospect-claimed sites) ──────
     let updatedBrief: ContentBrief
     try {
       const currentBrief = JSON.parse(websiteContentBrief) as ContentBrief
@@ -345,6 +380,7 @@ export type CustomerDashboardData = {
     clientId: string
     liveVersionId:    string | null
     draftVersionId:   string | null
+    htmlContent:       string | null
     draftHtmlContent:  string | null
     contentBrief:      string | null
     draftContentBrief: string | null
@@ -411,6 +447,21 @@ export async function deleteChangeRequest(requestId: string) {
 }
 
 // ── Delete a client + all related data (admin) ───────────
+// ── Reset client password (admin) ────────────────────────
+export async function resetClientPassword(
+  clientId: string,
+): Promise<{ tempPassword?: string; error?: string }> {
+  const client = await prisma.client.findUnique({ where: { id: clientId }, include: { user: true } })
+  if (!client) return { error: 'Client not found.' }
+
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
+  const tempPassword = Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+  const hashed = await bcrypt.hash(tempPassword, 10)
+
+  await prisma.user.update({ where: { id: client.userId }, data: { password: hashed } })
+  return { tempPassword }
+}
+
 export async function deleteClient(clientId: string): Promise<{ error?: string }> {
   const client = await prisma.client.findUnique({
     where: { id: clientId },
@@ -446,6 +497,127 @@ export async function deleteClient(clientId: string): Promise<{ error?: string }
   return {}
 }
 
+// ── Image re-hosting helpers ──────────────────────────────
+
+function extractImageUrls(html: string): string[] {
+  const urls = new Set<string>()
+  for (const m of html.matchAll(/<img[^>]+src=["']([^"']+)["']/gi)) {
+    if (m[1] && !m[1].startsWith('data:')) urls.add(m[1])
+  }
+  for (const m of html.matchAll(/url\(["']?([^"')]+)["']?\)/gi)) {
+    if (m[1] && !m[1].startsWith('data:') && /\.(jpg|jpeg|png|gif|webp|svg)(\?|$)/i.test(m[1])) {
+      urls.add(m[1])
+    }
+  }
+  return [...urls]
+}
+
+async function rehostImagesToBlob(html: string): Promise<string> {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) return html
+  const { put } = await import('@vercel/blob')
+  const urls = extractImageUrls(html)
+  const replacements = new Map<string, string>()
+
+  await Promise.allSettled(urls.map(async (url) => {
+    try {
+      const res = await fetch(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        signal: AbortSignal.timeout(15_000),
+      })
+      if (!res.ok) return
+      const contentType = res.headers.get('content-type') ?? 'image/jpeg'
+      if (!contentType.startsWith('image/')) return
+      const buffer = await res.arrayBuffer()
+      const ext = contentType.split('/')[1]?.split(';')[0] ?? 'jpg'
+      const filename = `imported/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+      const blob = await put(filename, buffer, { access: 'public', contentType })
+      replacements.set(url, blob.url)
+    } catch {
+      // Skip failed images — keep original URL
+    }
+  }))
+
+  let updated = html
+  for (const [original, replacement] of replacements) {
+    updated = updated.replaceAll(original, replacement)
+  }
+  return updated
+}
+
+// ── Import existing site HTML (admin) ────────────────────
+export async function importClientSite(
+  websiteId: string,
+  input: { url?: string; html?: string },
+): Promise<{ error?: string }> {
+  if (!input.url && !input.html) return { error: 'Provide a URL or HTML.' }
+
+  let html: string
+
+  if (input.url) {
+    let res: Response
+    try {
+      res = await fetch(input.url, { headers: { 'User-Agent': 'Mozilla/5.0' } })
+    } catch {
+      return { error: 'Could not fetch that URL. Check it is publicly accessible.' }
+    }
+    if (!res.ok) return { error: `Fetch failed: HTTP ${res.status}` }
+    const raw = await res.text()
+
+    // Strip all <script> tags — the original site's JS router (e.g. Next.js) calls
+    // history.replaceState with its own origin, which throws a SecurityError when
+    // the HTML is served from a different domain. CSS is kept; interactivity is not needed.
+    const stripped = raw.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
+
+    // Inject <base> tag so the browser resolves ALL relative URLs (images, CSS, fonts)
+    // against the source domain — more robust than regex-replacing every path.
+    const origin = new URL(input.url).origin
+    const baseTag = `<base href="${origin}/">`
+    html = stripped.includes('<base ')
+      ? stripped
+      : stripped.replace(/(<head[^>]*>)/i, `$1${baseTag}`)
+  } else {
+    html = input.html!
+  }
+
+  const website = await prisma.website.findUnique({ where: { id: websiteId }, select: { name: true } })
+
+  await prisma.website.update({
+    where: { id: websiteId },
+    data: {
+      htmlContent:    html,
+      contentBrief:   null,
+      liveVersionId:  null,
+      draftVersionId: null,
+    },
+  })
+
+  revalidatePath('/dashboard/admin')
+  revalidatePath('/dashboard/customer')
+
+  // Fire-and-forget: re-host images to Vercel Blob + extract content brief
+  void (async () => {
+    const [rehostedHtml, { extractContentBriefFromHtml }] = await Promise.all([
+      rehostImagesToBlob(html),
+      import('./claude'),
+    ])
+
+    const brief = await extractContentBriefFromHtml(rehostedHtml, website?.name ?? '')
+
+    await prisma.website.update({
+      where: { id: websiteId },
+      data: {
+        htmlContent:  rehostedHtml,
+        contentBrief: JSON.stringify(brief),
+      },
+    })
+
+    revalidatePath('/dashboard/admin')
+    revalidatePath('/dashboard/customer')
+  })().catch(console.error)
+
+  return {}
+}
+
 // ── Apply direct (no-AI) content edits (customer) ────────
 export async function applyDirectEdit(
   websiteId: string,
@@ -454,13 +626,82 @@ export async function applyDirectEdit(
   const website = await prisma.website.findUnique({ where: { id: websiteId } })
   if (!website) return { error: 'Website not found.' }
 
-  const { assembleProspectSite } = await import('./templates/index')
-  const draftHtml = assembleProspectSite(
-    updatedBrief,
-    website.name,
-    updatedBrief.heroImageUrl ?? null,
-    updatedBrief.galleryImageUrl ? [updatedBrief.galleryImageUrl] : [],
-  )
+  const htmlContent = (website as { htmlContent?: string | null }).htmlContent
+
+  let draftHtml: string
+
+  if (htmlContent) {
+    // Imported site — swap changed strings directly in the HTML.
+    // The stored contentBrief has the original extracted values; compare with
+    // updatedBrief to find what changed, then do plain string replacement.
+    // This is instant vs. 2+ minutes for a full Claude round-trip.
+    const currentBriefRaw = (website as { contentBrief?: string | null }).contentBrief
+    const currentBrief: ContentBrief | null = currentBriefRaw ? JSON.parse(currentBriefRaw) as ContentBrief : null
+
+    // Source HTML is the current draft (if one exists) or the live imported HTML
+    const currentHtmlRaw = (website as { draftHtmlContent?: string | null }).draftHtmlContent
+    const sourceHtml = currentHtmlRaw ?? htmlContent
+
+    // Build replacement pairs [oldText, newText] for every changed scalar field
+    const pairs: [string, string][] = []
+
+    function maybeReplace(oldVal: string | undefined | null, newVal: string | undefined | null) {
+      if (oldVal && newVal && oldVal !== newVal) pairs.push([oldVal, newVal])
+    }
+
+    maybeReplace(currentBrief?.headline,         updatedBrief.headline)
+    maybeReplace(currentBrief?.tagline,          updatedBrief.tagline)
+    maybeReplace(currentBrief?.subheadline,      updatedBrief.subheadline)
+    maybeReplace(currentBrief?.ctaText,          updatedBrief.ctaText)
+    maybeReplace(currentBrief?.about,            updatedBrief.about)
+    maybeReplace(currentBrief?.finalCtaHeadline, updatedBrief.finalCtaHeadline)
+    maybeReplace(currentBrief?.finalCtaSubtext,  updatedBrief.finalCtaSubtext)
+    maybeReplace(currentBrief?.email,            updatedBrief.email)
+    maybeReplace(currentBrief?.location,         updatedBrief.location)
+    maybeReplace(currentBrief?.heroAlt,          updatedBrief.heroAlt)
+
+    // Service name + description pairs
+    updatedBrief.services.forEach((svc, i) => {
+      const old = currentBrief?.services?.[i]
+      maybeReplace(old?.name,        svc.name)
+      maybeReplace(old?.description, svc.description)
+    })
+
+    // Stat + testimonial pairs
+    updatedBrief.stats?.forEach((stat, i) => {
+      const old = currentBrief?.stats?.[i]
+      maybeReplace(old?.value, stat.value)
+      maybeReplace(old?.label, stat.label)
+    })
+    updatedBrief.testimonials?.forEach((t, i) => {
+      const old = currentBrief?.testimonials?.[i]
+      maybeReplace(old?.quote,  t.quote)
+      maybeReplace(old?.author, t.author)
+      maybeReplace(old?.role,   t.role)
+    })
+
+    if (pairs.length === 0) {
+      return { error: 'No changes detected — edit one or more fields and save again.' }
+    }
+
+    draftHtml = pairs.reduce((acc, [from, to]) => acc.replaceAll(from, to), sourceHtml)
+
+    if (draftHtml === sourceHtml) {
+      // Replacement ran but found no matches — extracted text doesn't exactly match HTML
+      // (e.g. text is split across inline elements like <strong>). Fall back to AI Chat:
+      // ask the customer to submit the change as a chat request instead.
+      return { error: 'The original text could not be located in the HTML — the site may use formatted text. Use AI Chat to request this change instead.' }
+    }
+  } else {
+    // Template-generated site — regenerate from brief
+    const { assembleProspectSite } = await import('./templates/index')
+    draftHtml = assembleProspectSite(
+      updatedBrief,
+      website.name,
+      updatedBrief.heroImageUrl ?? null,
+      updatedBrief.galleryImageUrl ? [updatedBrief.galleryImageUrl] : [],
+    )
+  }
 
   await prisma.website.update({
     where: { id: websiteId },

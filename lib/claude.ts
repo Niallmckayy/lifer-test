@@ -344,6 +344,115 @@ async function generateContentBrief(
   }
 }
 
+// ── Extract a ContentBrief from imported HTML ─────────────────────────────────
+
+export async function extractContentBriefFromHtml(
+  html: string,
+  businessName: string,
+): Promise<ContentBrief> {
+  const MAX_CHARS = 80_000
+  // Strip scripts, styles, and comments to reduce token usage
+  const condensed = html
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .slice(0, MAX_CHARS)
+
+  const logoMark = businessName.slice(0, 2).toUpperCase() || 'XX'
+
+  const anthropic = getAnthropic()
+  const msg = await anthropic.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 2000,
+    system: `You are extracting content from an existing website's HTML into a structured JSON object. Read the HTML carefully and extract real text content. For design fields that cannot be determined from HTML, use the specified defaults.`,
+    messages: [{
+      role: 'user',
+      content: `Extract the website content from this HTML for a business called "${businessName}".
+
+Return ONLY a valid JSON object. Use these exact keys:
+
+{
+  "templateVariant": "minimal",
+  "heroStyle": "cinematic",
+  "heroTextPosition": "left-bottom",
+  "headingWeight": "bold",
+  "brandVoice": "authoritative",
+  "galleryEnabled": false,
+  "primaryColor": "#1c1917",
+  "accentColor": "#f5e8d0",
+  "fontHeading": "Inter",
+  "fontBody": "Inter",
+  "fontDisplay": null,
+  "logoMark": "${logoMark}",
+  "headline": "<main hero headline>",
+  "tagline": "<short 3-5 word descriptor>",
+  "subheadline": "<hero subheading or intro text>",
+  "navLinks": ["<nav item>", ...],
+  "ctaText": "<primary CTA button text>",
+  "heroAlt": "<description of hero image>",
+  "services": [{ "name": "<service name>", "description": "<1 sentence>" }],
+  "about": "<about section text>",
+  "process": [{ "step": "01", "title": "<title>", "body": "<body>" }],
+  "stats": [{ "value": "<value>", "label": "<label>" }],
+  "testimonials": [{ "quote": "<quote>", "author": "<name>", "role": "<role>" }],
+  "finalCtaHeadline": "<footer CTA headline>",
+  "finalCtaSubtext": "<footer CTA subtext>",
+  "email": "<contact email if found, else hello@${businessName.toLowerCase().replace(/\s+/g, '')}.com>",
+  "location": "<city, country if found>"
+}
+
+RULES:
+- Extract REAL text from the HTML — do not invent content
+- For design fields (templateVariant, heroStyle, etc.) use the defaults shown above exactly
+- If a section (process, stats, testimonials) is not present, use empty arrays
+- Keep the JSON compact and valid
+
+HTML:
+${condensed}`,
+    }],
+  })
+
+  const text = (msg.content[0] as { type: 'text'; text: string }).text
+  const jsonMatch = text.match(/\{[\s\S]*\}/)
+  if (!jsonMatch) throw new Error('No JSON in extraction response')
+  const parsed = JSON.parse(jsonMatch[0]) as ContentBrief
+
+  // Ensure required array fields exist
+  parsed.services      = Array.isArray(parsed.services)      ? parsed.services      : []
+  parsed.process       = Array.isArray(parsed.process)       ? parsed.process       : []
+  parsed.stats         = Array.isArray(parsed.stats)         ? parsed.stats         : []
+  parsed.testimonials  = Array.isArray(parsed.testimonials)  ? parsed.testimonials  : []
+  parsed.navLinks      = Array.isArray(parsed.navLinks)      ? parsed.navLinks      : []
+  parsed.logoMark      = parsed.logoMark || logoMark
+
+  return parsed
+}
+
+export async function generateHtmlModification(
+  existingHtml: string,
+  changeRequest: string,
+): Promise<string> {
+  const MAX_CHARS = 150_000
+  const html = existingHtml.length > MAX_CHARS
+    ? existingHtml.slice(0, MAX_CHARS)
+    : existingHtml
+
+  const anthropic = getAnthropic()
+  const msg = await anthropic.messages.create({
+    model:      'claude-sonnet-4-6',
+    max_tokens: 16384,
+    system: `You are editing a website's HTML. Make only the specific change requested by the user. Preserve all existing structure, CSS classes, JavaScript, inline styles, and asset URLs exactly. Return the complete HTML document with only the requested change applied — nothing else, no explanation, no markdown fences.`,
+    messages: [{
+      role:    'user',
+      content: `Change request: ${changeRequest}\n\nHTML:\n${html}`,
+    }],
+  })
+
+  const text = msg.content.find(b => b.type === 'text')?.text ?? ''
+  // Strip any accidental markdown fences
+  return text.replace(/^```html\s*/i, '').replace(/\s*```$/, '').trim()
+}
+
 export async function generateProspectHtml(params: {
   businessName:     string
   industry:         string

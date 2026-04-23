@@ -35,6 +35,7 @@ export default async function CustomerProjectPage() {
       draftHasGithub={!!(activeDraftRequest?.githubBranch)}
       draftPreviewUrl={activeDraftRequest?.draftPreviewUrl ?? null}
       draftPrUrl={activeDraftRequest?.githubPrUrl ?? null}
+      hasHtmlContent={!!website.htmlContent}
       contentBrief={website.contentBrief ?? null}
       draftContentBrief={website.draftContentBrief ?? null}
       usedRequests={usedThisMonth}
