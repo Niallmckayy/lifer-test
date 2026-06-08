@@ -56,6 +56,24 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Clickable elements always show a pointer cursor */
+button:not(:disabled),
+a,
+[role="button"],
+label[for],
+select,
+input[type="checkbox"],
+input[type="radio"],
+input[type="range"],
+input[type="color"],
+summary {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
 body {
   background-color: var(--bg);
   color: var(--text);
@@ -64,6 +82,12 @@ body {
 
 h1, h2, h3, h4 {
   font-family: var(--font-heading);
+}
+
+/* Sidebar nav item hover */
+.nav-item:hover {
+  background: rgba(212, 131, 12, 0.07) !important;
+  color:      rgba(245, 232, 208, 0.65) !important;
 }
 
 /* Pegboard texture */

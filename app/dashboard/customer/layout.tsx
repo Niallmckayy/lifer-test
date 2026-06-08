@@ -15,7 +15,7 @@ export default async function CustomerLayout({ children }: { children: React.Rea
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: '#0e0b07' }}>
       <CustomerSidebar email={user?.email ?? ''} />
-      <main className="flex-1 flex flex-col overflow-hidden">
+      <main className="flex-1 flex flex-col overflow-y-auto">
         {children}
       </main>
     </div>

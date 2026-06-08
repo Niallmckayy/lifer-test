@@ -482,6 +482,8 @@ export async function deleteClient(clientId: string): Promise<{ error?: string }
       })
       await tx.changeRequest.deleteMany({ where: { websiteId: client.website.id } })
       await tx.version.deleteMany({ where: { websiteId: client.website.id } })
+      await tx.analyticsEvent.deleteMany({ where: { websiteId: client.website.id } })
+      await tx.siteContent.deleteMany({ where: { websiteId: client.website.id } })
       await tx.website.delete({ where: { id: client.website.id } })
     }
     // Clear prospect back-reference so the prospect record isn't deleted
@@ -764,7 +766,7 @@ export async function getAdminDashboardData() {
 
   const [clients, changeRequests, readyProspects] = await Promise.all([
     prisma.client.findMany({
-      include: { website: true, user: true },
+      include: { website: true, user: true, _count: { select: { bookingResources: { where: { active: true } } } } },
       orderBy: { createdAt: 'desc' },
     }),
     prisma.changeRequest.findMany({
@@ -803,7 +805,7 @@ export async function getAdminDashboardData() {
 // ── Customer overview (lightweight) ──────────────────────
 export async function getCustomerOverviewData(userId: string) {
   const now = new Date()
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
 
   const client = await prisma.client.findUnique({
     where: { userId },
@@ -816,21 +818,48 @@ export async function getCustomerOverviewData(userId: string) {
           previewUrl: true,
           draftVersionId: true,
           draftHtmlContent: true,
+          siteContent: { select: { updatedAt: true } },
         },
-      },
-      requests: {
-        orderBy: { createdAt: 'desc' },
-        take: 5,
-        select: { id: true, message: true, status: true, createdAt: true },
       },
     },
   })
 
   if (!client) return null
 
-  const monthlyUsage = await prisma.changeRequest.count({
-    where: { clientId: client.id, createdAt: { gte: monthStart } },
-  })
+  const websiteId = client.website?.id
+
+  const [upcomingBookings, analyticsEvents] = await Promise.all([
+    prisma.booking.findMany({
+      where: { clientId: client.id, startsAt: { gte: now }, status: 'CONFIRMED' },
+      orderBy: { startsAt: 'asc' },
+      take: 3,
+      include: { resource: { select: { name: true } } },
+    }),
+    websiteId
+      ? prisma.analyticsEvent.findMany({
+          where: { websiteId, type: 'pageview', createdAt: { gte: weekAgo } },
+          select: { sessionId: true, createdAt: true },
+        })
+      : Promise.resolve([]),
+  ])
+
+  const uniqueVisitors = new Set(analyticsEvents.map(e => e.sessionId)).size
+
+  // Daily visit counts for sparkline (last 7 days)
+  const dailyMap = new Map<string, Set<string>>()
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(weekAgo)
+    d.setDate(d.getDate() + i)
+    dailyMap.set(d.toISOString().slice(0, 10), new Set())
+  }
+  for (const e of analyticsEvents) {
+    const day = e.createdAt.toISOString().slice(0, 10)
+    if (dailyMap.has(day)) dailyMap.get(day)!.add(e.sessionId)
+  }
+  const dailyVisits = Array.from(dailyMap.entries()).map(([date, sessions]) => ({
+    date,
+    count: sessions.size,
+  }))
 
   return {
     client: {
@@ -838,13 +867,13 @@ export async function getCustomerOverviewData(userId: string) {
       name:               client.name,
       plan:               client.plan,
       status:             client.status,
-      requestLimit:       client.requestLimit,
       stripeCustomerId:   (client as { stripeCustomerId?: string | null }).stripeCustomerId ?? null,
       subscriptionStatus: (client as { subscriptionStatus?: string | null }).subscriptionStatus ?? null,
     },
     website: client.website,
-    recentRequests: client.requests,
-    monthlyUsage,
+    upcomingBookings,
+    uniqueVisitors,
+    dailyVisits,
   }
 }
 
@@ -913,6 +942,91 @@ export async function searchPhotos(
   const { searchUnsplash } = await import('./unsplash')
   const photos = await searchUnsplash(query.trim(), count, 'landscape')
   return photos.map(p => ({ url: p.url, thumbUrl: p.thumbUrl, credit: p.credit }))
+}
+
+// ── Admin booking profile (auto-create) ──────────────────
+
+export async function getOrCreateAdminBookingProfile(): Promise<{
+  clientId: string
+  slug:     string
+  error?:   string
+}> {
+  const { auth } = await import('./auth')
+  const session = await auth()
+  if (!session?.user || (session.user as { role?: string }).role !== 'ADMIN') {
+    return { clientId: '', slug: '', error: 'Unauthorised.' }
+  }
+
+  const adminUserId = (session.user as { id: string }).id
+
+  let client = await prisma.client.findUnique({
+    where:   { userId: adminUserId },
+    include: { website: { select: { id: true, slug: true } } },
+  })
+
+  if (!client) {
+    const baseSlug = 'my-booking'
+    const taken = await prisma.website.findUnique({ where: { slug: baseSlug } })
+    const slug  = taken ? `my-booking-${Date.now()}` : baseSlug
+
+    client = await prisma.client.create({
+      data: {
+        name:         'My Booking Page',
+        userId:       adminUserId,
+        plan:         'Admin',
+        requestLimit: 999,
+        website: { create: { name: 'My Booking Page', slug } },
+      },
+      include: { website: { select: { id: true, slug: true } } },
+    })
+  } else if (!client.website) {
+    const baseSlug = 'my-booking'
+    const taken = await prisma.website.findUnique({ where: { slug: baseSlug } })
+    const slug  = taken ? `my-booking-${Date.now()}` : baseSlug
+
+    await prisma.website.create({
+      data: { name: 'My Booking Page', slug, clientId: client.id },
+    })
+
+    client = await prisma.client.findUnique({
+      where:   { userId: adminUserId },
+      include: { website: { select: { id: true, slug: true } } },
+    })!
+  }
+
+  return { clientId: client!.id, slug: client!.website?.slug ?? '' }
+}
+
+// ── Calendar connection ───────────────────────────────────
+
+export async function getCalendarConnection(clientId: string) {
+  const { auth } = await import('./auth')
+  const session = await auth()
+  if (!session?.user) return { error: 'Unauthorised.' }
+  const isAdmin = (session.user as { role?: string }).role === 'ADMIN'
+  if (!isAdmin) {
+    const client = await prisma.client.findUnique({ where: { userId: (session.user as { id: string }).id } })
+    if (!client || client.id !== clientId) return { error: 'Unauthorised.' }
+  }
+  const conn = await prisma.calendarConnection.findUnique({
+    where:  { clientId },
+    select: { provider: true, calendarId: true, createdAt: true },
+  })
+  return { connection: conn ?? null }
+}
+
+export async function disconnectCalendar(clientId: string): Promise<{ error?: string }> {
+  const { auth } = await import('./auth')
+  const session = await auth()
+  if (!session?.user) return { error: 'Unauthorised.' }
+  const isAdmin = (session.user as { role?: string }).role === 'ADMIN'
+  if (!isAdmin) {
+    const client = await prisma.client.findUnique({ where: { userId: (session.user as { id: string }).id } })
+    if (!client || client.id !== clientId) return { error: 'Unauthorised.' }
+  }
+  await prisma.calendarConnection.deleteMany({ where: { clientId } })
+  revalidatePath('/dashboard/customer/bookings')
+  return {}
 }
 
 // ── Update password (customer) ────────────────────────────

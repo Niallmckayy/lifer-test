@@ -1,6 +1,5 @@
 import { Resend } from 'resend'
 
-// Lazy — avoids throwing at module load time when key is not yet set
 function getResend() {
   return new Resend(process.env.RESEND_API_KEY ?? '')
 }
@@ -46,5 +45,218 @@ export async function sendDeployedEmail(
       ``,
       `Studio`,
     ].join('\n'),
+  })
+}
+
+function formatBookingDateTime(date: Date, timezone: string): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: timezone,
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date)
+}
+
+function formatTime(date: Date, timezone: string): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: timezone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date)
+}
+
+function googleCalendarLink(params: {
+  title: string
+  startsAt: Date
+  endsAt: Date
+  details?: string
+}): string {
+  const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
+  const q = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: params.title,
+    dates: `${fmt(params.startsAt)}/${fmt(params.endsAt)}`,
+    ...(params.details ? { details: params.details } : {}),
+  })
+  return `https://www.google.com/calendar/render?${q.toString()}`
+}
+
+function outlookCalendarLink(params: {
+  title: string
+  startsAt: Date
+  endsAt: Date
+  body?: string
+}): string {
+  const q = new URLSearchParams({
+    subject: params.title,
+    startdt: params.startsAt.toISOString(),
+    enddt:   params.endsAt.toISOString(),
+    ...(params.body ? { body: params.body } : {}),
+  })
+  return `https://outlook.live.com/calendar/0/deeplink/compose?${q.toString()}`
+}
+
+function meetingBlock(meetingType: string, location?: string, meetLink?: string): string[] {
+  if (meetingType === 'virtual' && meetLink) {
+    return [``, `Join Google Meet:`, meetLink]
+  }
+  if (meetingType === 'virtual') {
+    return [``, `This is a virtual session. A Google Meet link will follow shortly.`]
+  }
+  if (meetingType === 'phone') {
+    return [``, `This is a phone call — we'll call you at the time of your booking.`]
+  }
+  if (meetingType === 'in_person' && location) {
+    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`
+    return [``, `Location: ${location}`, `Get directions: ${mapsUrl}`]
+  }
+  return []
+}
+
+interface ConfirmationParams {
+  to:           string
+  customerName: string
+  resourceName: string
+  clientName:   string
+  startsAt:     Date
+  endsAt:       Date
+  timezone:     string
+  cancelToken:  string
+  appUrl:       string
+  meetingType?: string
+  location?:    string
+  meetLink?:    string
+}
+
+export async function sendBookingConfirmationEmail(params: ConfirmationParams): Promise<void> {
+  const title     = `${params.resourceName} at ${params.clientName}`
+  const startStr  = formatBookingDateTime(params.startsAt, params.timezone)
+  const endStr    = formatTime(params.endsAt, params.timezone)
+  const cancelUrl = `${params.appUrl}/book/cancel/${params.cancelToken}`
+  const gcal      = googleCalendarLink({ title, startsAt: params.startsAt, endsAt: params.endsAt })
+  const outlook   = outlookCalendarLink({ title, startsAt: params.startsAt, endsAt: params.endsAt })
+  const mType     = params.meetingType ?? 'in_person'
+
+  await getResend().emails.send({
+    from: FROM(),
+    to: params.to,
+    subject: `Booking confirmed — ${title}`,
+    text: [
+      `Hi ${params.customerName},`,
+      ``,
+      `Your booking is confirmed.`,
+      ``,
+      `  ${title}`,
+      `  ${startStr} – ${endStr}`,
+      ...meetingBlock(mType, params.location, params.meetLink),
+      ``,
+      `Add to your calendar:`,
+      `  Google Calendar: ${gcal}`,
+      `  Outlook: ${outlook}`,
+      ``,
+      `Need to cancel? Use this link (up to the time of your booking):`,
+      cancelUrl,
+      ``,
+      `See you then.`,
+    ].join('\n'),
+  })
+}
+
+export async function sendBookingReminderEmail(params: ConfirmationParams): Promise<void> {
+  const title    = `${params.resourceName} at ${params.clientName}`
+  const startStr = formatBookingDateTime(params.startsAt, params.timezone)
+  const endStr   = formatTime(params.endsAt, params.timezone)
+  const cancelUrl = `${params.appUrl}/book/cancel/${params.cancelToken}`
+  const mType    = params.meetingType ?? 'in_person'
+
+  await getResend().emails.send({
+    from: FROM(),
+    to: params.to,
+    subject: `Reminder: your booking is tomorrow — ${params.resourceName}`,
+    text: [
+      `Hi ${params.customerName},`,
+      ``,
+      `Just a reminder — your booking is tomorrow.`,
+      ``,
+      `  ${title}`,
+      `  ${startStr} – ${endStr}`,
+      ...meetingBlock(mType, params.location, params.meetLink),
+      ``,
+      `Need to cancel? Use this link:`,
+      cancelUrl,
+      ``,
+      `See you tomorrow.`,
+    ].join('\n'),
+  })
+}
+
+export async function sendBookingFollowUpEmail(params: {
+  to:           string
+  customerName: string
+  resourceName: string
+  clientName:   string
+  bookingUrl:   string
+}): Promise<void> {
+  await getResend().emails.send({
+    from: FROM(),
+    to: params.to,
+    subject: `How was your session? — ${params.resourceName}`,
+    text: [
+      `Hi ${params.customerName},`,
+      ``,
+      `Hope your ${params.resourceName} session with ${params.clientName} went well.`,
+      ``,
+      `If you'd like to book again:`,
+      params.bookingUrl,
+      ``,
+      `Thanks for booking with us.`,
+    ].join('\n'),
+  })
+}
+
+interface NotificationParams {
+  to:            string
+  clientName:    string
+  resourceName:  string
+  customerName:  string
+  customerEmail: string
+  customerPhone: string | null | undefined
+  startsAt:      Date
+  timezone:      string
+  notes:         string | null | undefined
+  adminUrl:      string
+  meetingType?:  string
+  location?:     string
+  meetLink?:     string
+}
+
+export async function sendBookingNotificationEmail(params: NotificationParams): Promise<void> {
+  const startStr = formatBookingDateTime(params.startsAt, params.timezone)
+  const mType    = params.meetingType ?? 'in_person'
+
+  const lines = [
+    `New booking — ${params.resourceName}`,
+    ``,
+    `  Customer: ${params.customerName}`,
+    `  Email:    ${params.customerEmail}`,
+    ...(params.customerPhone ? [`  Phone:    ${params.customerPhone}`] : []),
+    `  Time:     ${startStr}`,
+    ...(params.notes ? [`  Notes:    ${params.notes}`] : []),
+    ...meetingBlock(mType, params.location, params.meetLink),
+    ``,
+    `Manage this booking:`,
+    params.adminUrl,
+  ]
+
+  await getResend().emails.send({
+    from: FROM(),
+    to: params.to,
+    subject: `New booking: ${params.customerName} — ${startStr}`,
+    text: lines.join('\n'),
   })
 }

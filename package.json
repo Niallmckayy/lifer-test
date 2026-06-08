@@ -11,7 +11,8 @@
     "start": "next start",
     "lint": "eslint",
     "db:seed": "tsx prisma/seed.ts",
-    "db:reset": "prisma migrate reset --force && tsx prisma/seed.ts"
+    "db:reset": "prisma migrate reset --force && tsx prisma/seed.ts",
+    "db:migrate-booking": "tsx prisma/migrate-booking.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.89.0",

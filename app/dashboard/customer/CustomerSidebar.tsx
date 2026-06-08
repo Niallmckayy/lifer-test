@@ -16,14 +16,36 @@ const navItems = [
     ),
   },
   {
-    label: 'My Project',
-    href: '/dashboard/customer/project',
+    label: 'Bookings',
+    href: '/dashboard/customer/bookings',
     icon: (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <rect x="1.5" y="2.5" width="13" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.25" />
-        <path d="M1.5 5.5h13" stroke="currentColor" strokeWidth="1.25" />
-        <circle cx="4" cy="4" r=".75" fill="currentColor" />
-        <circle cx="6.5" cy="4" r=".75" fill="currentColor" />
+        <rect x="1.5" y="2.5" width="13" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.25" />
+        <path d="M1.5 6.5h13" stroke="currentColor" strokeWidth="1.25" />
+        <path d="M5 1.5v2M11 1.5v2" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" />
+        <rect x="4" y="9" width="2" height="2" rx=".4" fill="currentColor" />
+        <rect x="7" y="9" width="2" height="2" rx=".4" fill="currentColor" />
+        <rect x="10" y="9" width="2" height="2" rx=".4" fill="currentColor" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Content',
+    href: '/dashboard/customer/content',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M2.5 4.5h11M2.5 7.5h8M2.5 10.5h6" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" />
+        <rect x="1.5" y="1.5" width="13" height="13" rx="1.5" stroke="currentColor" strokeWidth="1.25" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Analytics',
+    href: '/dashboard/customer/analytics',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M2 12L6 7.5L9.5 10L14 4" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M14 4h-3M14 4v3" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" />
       </svg>
     ),
   },
@@ -45,6 +67,18 @@ const navItems = [
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
         <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.25" />
         <path d="M8 1.5v1M8 13.5v1M1.5 8h1M13.5 8h1M3.4 3.4l.7.7M11.9 11.9l.7.7M12.6 3.4l-.7.7M4.1 11.9l-.7.7" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    label: 'My Project',
+    href: '/dashboard/customer/project',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <rect x="1.5" y="2.5" width="13" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.25" />
+        <path d="M1.5 5.5h13" stroke="currentColor" strokeWidth="1.25" />
+        <circle cx="4" cy="4" r=".75" fill="currentColor" />
+        <circle cx="6.5" cy="4" r=".75" fill="currentColor" />
       </svg>
     ),
   },
@@ -82,7 +116,7 @@ export default function CustomerSidebar({ email }: { email: string }) {
             <Link
               key={item.href}
               href={item.href}
-              className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-all"
+              className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-all${active ? '' : ' nav-item'}`}
               style={{
                 borderRadius: '10px',
                 background: active ? 'rgba(212,131,12,0.12)' : 'transparent',

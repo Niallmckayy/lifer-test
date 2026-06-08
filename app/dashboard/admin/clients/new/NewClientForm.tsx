@@ -130,6 +130,19 @@ export default function NewClientForm() {
         />
       </div>
 
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs font-medium" style={{ color: '#555' }}>
+          Live site URL{' '}
+          <span style={{ color: '#aaa', fontWeight: 400 }}>— external URL if already hosted (e.g. Vercel)</span>
+        </label>
+        <input
+          name="previewUrl"
+          type="url"
+          placeholder="https://client-site.vercel.app"
+          style={inputStyle}
+        />
+      </div>
+
       {error && (
         <p className="text-xs" style={{ color: '#ef4444' }}>{error}</p>
       )}

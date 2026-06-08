@@ -182,13 +182,13 @@ export default function Home() {
               Try it out — it&apos;s free →
             </a>
             <Link
-              href="/login"
+              href="/book"
               className="text-sm font-medium px-7 py-3.5 transition-all"
               style={{ color: 'rgba(245,232,208,0.7)', border: '1px solid rgba(245,232,208,0.2)', borderRadius: '999px' }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(245,232,208,0.4)'; e.currentTarget.style.color = TEXT }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(245,232,208,0.2)'; e.currentTarget.style.color = 'rgba(245,232,208,0.7)' }}
             >
-              Sign in
+              Book a consultation
             </Link>
           </div>
         </div>
@@ -334,6 +334,38 @@ export default function Home() {
               </p>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* ── Consultation CTA ───────────────────────────────── */}
+      <section className="px-8 py-28" style={{ background: SURFACE }}>
+        <div
+          className="max-w-3xl mx-auto text-center px-8 py-16 relative overflow-hidden"
+          style={{ borderRadius: '24px', border: `1px solid ${BORDER}`, background: BG }}
+        >
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{ background: 'radial-gradient(ellipse at center, rgba(212,131,12,0.07) 0%, transparent 70%)' }}
+          />
+          <p className="text-xs uppercase tracking-widest font-semibold mb-4 relative" style={{ color: ACCENT }}>
+            Get started
+          </p>
+          <h2
+            className="font-bold tracking-tight mb-4 relative"
+            style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 'clamp(1.75rem, 3.5vw, 2.5rem)', color: TEXT }}
+          >
+            Ready to talk about your website?
+          </h2>
+          <p className="text-sm leading-relaxed mb-8 relative" style={{ color: MUTED, maxWidth: '420px', margin: '0 auto 2rem' }}>
+            Book a free consultation and we&apos;ll discuss what you need, answer your questions, and show you how Lifer works.
+          </p>
+          <Link
+            href="/book"
+            className="inline-block text-sm font-semibold px-8 py-4 transition-all hover:opacity-90 relative"
+            style={{ background: ACCENT, borderRadius: '999px', color: '#fff', boxShadow: `0 0 40px rgba(212,131,12,0.3)` }}
+          >
+            Book a free consultation →
+          </Link>
         </div>
       </section>
 

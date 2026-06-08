@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { auth } from '@/lib/auth'
 import { getAdminDashboardData } from '@/lib/actions'
+import { prisma } from '@/lib/prisma'
 import AdminActions from './AdminActions'
 import AdminBillingForm from './AdminBillingForm'
 import AdminDeploymentForm from './AdminDeploymentForm'
@@ -75,7 +76,19 @@ export default async function AdminDashboard() {
   const session = await auth()
   if (!session?.user || (session.user as { role?: string }).role !== 'ADMIN') redirect('/login')
 
-  const { clients, changeRequests, analytics } = await getAdminDashboardData()
+  const [{ clients, changeRequests, analytics }, trafficRows] = await Promise.all([
+    getAdminDashboardData(),
+    prisma.analyticsEvent.groupBy({
+      by: ['websiteId'],
+      where: {
+        type: 'pageview',
+        createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+      },
+      _count: { sessionId: true },
+    }),
+  ])
+
+  const trafficMap = new Map(trafficRows.map(r => [r.websiteId, r._count.sessionId]))
 
   return (
     <div className="min-h-screen" style={{ background: '#0e0b07' }}>
@@ -108,6 +121,13 @@ export default async function AdminDashboard() {
             style={{ background: 'rgba(245,232,208,0.06)', borderRadius: '999px', color: 'rgba(245,232,208,0.6)', border: '1px solid rgba(245,232,208,0.1)' }}
           >
             Prospects
+          </Link>
+          <Link
+            href="/dashboard/admin/my-booking"
+            className="text-xs font-semibold px-4 py-2 transition-all hover:opacity-70"
+            style={{ background: 'rgba(212,131,12,0.12)', borderRadius: '999px', color: '#e8a020', border: '1px solid rgba(212,131,12,0.2)' }}
+          >
+            My Booking Page
           </Link>
           <Link
             href="/dashboard/admin/clients/new"
@@ -151,8 +171,8 @@ export default async function AdminDashboard() {
               {clients.length}
             </span>
           </div>
-          <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.07)', overflow: 'hidden' }}>
-            <table className="w-full text-sm">
+          <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.07)', overflowX: 'auto' }}>
+            <table className="w-full text-sm" style={{ minWidth: '1200px' }}>
               <thead>
                 <tr>
                   <Th>Name</Th>
@@ -162,6 +182,9 @@ export default async function AdminDashboard() {
                   <Th>Website</Th>
                   <Th>Deployment</Th>
                   <Th>Import</Th>
+                  <Th>Traffic</Th>
+                  <Th>CMS</Th>
+                  <Th>Bookings</Th>
                   <Th>Billing</Th>
                   <Th>Password</Th>
                   <Th>{''}</Th>
@@ -227,6 +250,35 @@ export default async function AdminDashboard() {
                         websiteId={(client as { website?: { id?: string } }).website?.id ?? ''}
                         hasImport={!!(client as { website?: { htmlContent?: string | null } }).website?.htmlContent}
                       />
+                    </td>
+                    <td className="px-5 py-4">
+                      {(() => {
+                        const websiteId = (client as { website?: { id?: string } }).website?.id
+                        const visits = websiteId ? (trafficMap.get(websiteId) ?? 0) : 0
+                        return (
+                          <span className="text-xs font-medium" style={{ color: visits > 0 ? '#6dbf56' : 'rgba(255,255,255,0.15)' }}>
+                            {visits > 0 ? `${visits} visits` : '—'}
+                          </span>
+                        )
+                      })()}
+                    </td>
+                    <td className="px-5 py-4">
+                      <Link
+                        href={`/dashboard/admin/cms/${client.id}`}
+                        className="text-xs font-medium transition-opacity hover:opacity-70"
+                        style={{ color: (client as { website?: { cmsSchema?: string | null } }).website?.cmsSchema ? '#6dbf56' : '#d4830c' }}
+                      >
+                        {(client as { website?: { cmsSchema?: string | null } }).website?.cmsSchema ? 'Active →' : 'Setup →'}
+                      </Link>
+                    </td>
+                    <td className="px-5 py-4">
+                      <Link
+                        href={`/dashboard/admin/booking/${client.id}`}
+                        className="text-xs font-medium transition-opacity hover:opacity-70"
+                        style={{ color: '#d4830c' }}
+                      >
+                        Manage →
+                      </Link>
                     </td>
                     <td className="px-5 py-4">
                       <AdminBillingForm

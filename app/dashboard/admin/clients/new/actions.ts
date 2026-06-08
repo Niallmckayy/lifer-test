@@ -3,20 +3,17 @@
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import { revalidatePath } from 'next/cache'
-
-function generatePassword(length = 12): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
-  return Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
-}
+import { generatePassword } from '@/lib/generate-password'
 
 export async function createClient(
   formData: FormData,
 ): Promise<{ error?: string; tempPassword?: string }> {
-  const name       = formData.get('name') as string
-  const email      = formData.get('email') as string
-  const plan       = formData.get('plan') as string
+  const name        = formData.get('name') as string
+  const email       = formData.get('email') as string
+  const plan        = formData.get('plan') as string
   const websiteName = formData.get('websiteName') as string
-  const slug       = formData.get('slug') as string
+  const slug        = formData.get('slug') as string
+  const previewUrl  = (formData.get('previewUrl') as string | null) || null
 
   if (!name || !email || !plan || !websiteName || !slug) {
     return { error: 'All fields are required.' }
@@ -59,6 +56,7 @@ export async function createClient(
         name: websiteName,
         slug,
         clientId: client.id,
+        ...(previewUrl ? { previewUrl } : {}),
       },
     })
 

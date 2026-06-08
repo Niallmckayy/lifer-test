@@ -10,6 +10,13 @@ const nextConfig: NextConfig = {
           { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
         ],
       },
+      {
+        // Allow /book/* to be embedded in iframes from any origin
+        source: '/book/:path*',
+        headers: [
+          { key: 'Content-Security-Policy', value: "frame-ancestors *" },
+        ],
+      },
     ]
   },
 }

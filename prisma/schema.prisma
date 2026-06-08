@@ -22,71 +22,90 @@ enum Role {
 }
 
 model Client {
-  id                   String          @id @default(cuid())
-  name                 String
-  plan                 String          @default("Starter")
-  status               String          @default("Active")
-  requestLimit         Int             @default(10)
-  userId               String          @unique
-  user                 User            @relation(fields: [userId], references: [id])
-  website              Website?
-  requests             ChangeRequest[]
-  stripeCustomerId     String?
-  stripeSubscriptionId String?
-  stripePriceId        String?
-  subscriptionStatus   String?         @default("active")
+  id                    String              @id @default(cuid())
+  name                  String
+  plan                  String              @default("Starter")
+  status                String              @default("Active")
+  requestLimit          Int                 @default(10)
+  userId                String              @unique
+  user                  User                @relation(fields: [userId], references: [id])
+  website               Website?
+  requests              ChangeRequest[]
+  stripeCustomerId      String?
+  stripeSubscriptionId  String?
+  stripePriceId         String?
+  subscriptionStatus    String?             @default("active")
   convertedFromProspect Prospect?
-  createdAt            DateTime        @default(now())
+  bookingResources      BookingResource[]
+  bookings              Booking[]
+  calendarToken         String?             @unique
+  calendarConnection    CalendarConnection?
+  bookingTheme          String              @default("{}")
+  createdAt             DateTime            @default(now())
 }
 
 model Website {
-  id             String    @id @default(cuid())
-  name           String
-  slug           String    @unique
-  clientId       String    @unique
-  client         Client    @relation(fields: [clientId], references: [id])
-  liveVersionId  String?   @unique
-  liveVersion    Version?  @relation("LiveVersion",  fields: [liveVersionId],  references: [id])
-  draftVersionId String?   @unique
-  draftVersion   Version?  @relation("DraftVersion", fields: [draftVersionId], references: [id])
-  versions       Version[] @relation("AllVersions")
-  htmlContent      String?
-  draftHtmlContent String?
+  id                String       @id @default(cuid())
+  name              String
+  slug              String       @unique
+  clientId          String       @unique
+  client            Client       @relation(fields: [clientId], references: [id])
+  liveVersionId     String?      @unique
+  liveVersion       Version?     @relation("LiveVersion",  fields: [liveVersionId],  references: [id])
+  draftVersionId    String?      @unique
+  draftVersion      Version?     @relation("DraftVersion", fields: [draftVersionId], references: [id])
+  versions          Version[]    @relation("AllVersions")
+  htmlContent       String?
+  draftHtmlContent  String?
   contentBrief      String?
   draftContentBrief String?
   previewUrl        String?
-  githubRepo      String?           // e.g. "Niallmckayy/mk-architects-redesign"
-  githubBranch    String?           @default("main")
-  vercelProjectId String?
-  vercelTeamId    String?
-  createdAt       DateTime  @default(now())
+  githubRepo        String?
+  githubBranch      String?      @default("main")
+  vercelProjectId   String?
+  vercelTeamId      String?
+  cmsSchema         String?
+  revalidateHook    String?
+  siteContent       SiteContent?
+  analyticsEvents   AnalyticsEvent[]
+  createdAt         DateTime     @default(now())
+}
+
+model SiteContent {
+  id        String   @id @default(cuid())
+  websiteId String   @unique
+  website   Website  @relation(fields: [websiteId], references: [id])
+  content   String
+  draft     String?
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
 }
 
 model Version {
-  id             String    @id @default(cuid())
+  id             String   @id @default(cuid())
   headline       String
   subheading     String
   about          String
   services       String
   websiteId      String
-  website        Website   @relation("AllVersions",  fields: [websiteId], references: [id])
-  liveOnWebsite  Website?  @relation("LiveVersion")
-  draftOnWebsite Website?  @relation("DraftVersion")
-  createdAt      DateTime  @default(now())
+  website        Website  @relation("AllVersions",  fields: [websiteId], references: [id])
+  liveOnWebsite  Website? @relation("LiveVersion")
+  draftOnWebsite Website? @relation("DraftVersion")
+  createdAt      DateTime @default(now())
 }
 
 model ChangeRequest {
-  id             String        @id @default(cuid())
-  message        String
-  status         RequestStatus @default(PENDING)
-  clientId       String
-  client         Client        @relation(fields: [clientId], references: [id])
-  websiteId      String
-  githubBranch   String?
+  id              String        @id @default(cuid())
+  message         String
+  status          RequestStatus @default(PENDING)
+  clientId        String
+  client          Client        @relation(fields: [clientId], references: [id])
+  websiteId       String
+  githubBranch    String?
   draftPreviewUrl String?
-  githubPrNumber Int?
-  githubPrUrl    String?
-  createdAt      DateTime      @default(now())
+  githubPrNumber  Int?
+  githubPrUrl     String?
+  createdAt       DateTime      @default(now())
 }
 
 enum RequestStatus {
@@ -124,4 +143,85 @@ enum ProspectStatus {
   ERROR
   CONVERTED
   ARCHIVED
+}
+
+// ── Analytics ─────────────────────────────────────────────
+
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  websiteId String
+  website   Website  @relation(fields: [websiteId], references: [id])
+  type      String   // "pageview" | "duration" | "booking_click"
+  page      String
+  sessionId String
+  duration  Int?
+  referrer  String?
+  createdAt DateTime @default(now())
+}
+
+// ── Booking system ────────────────────────────────────────
+
+model BookingResource {
+  id           String                @id @default(cuid())
+  clientId     String
+  client       Client                @relation(fields: [clientId], references: [id])
+  name         String
+  description  String?
+  slotDuration Int
+  bufferTime   Int                   @default(0)
+  maxCapacity  Int                   @default(1)
+  timezone     String                @default("Europe/London")
+  color         String?
+  active        Boolean               @default(true)
+  meetingType   String                @default("in_person") // "in_person" | "virtual" | "phone"
+  location      String?
+  sendReminders Boolean               @default(true)
+  sendFollowUp  Boolean               @default(false)
+  availability  BookingAvailability[]
+  bookings      Booking[]
+  createdAt     DateTime              @default(now())
+}
+
+model BookingAvailability {
+  id         String          @id @default(cuid())
+  resourceId String
+  resource   BookingResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  dayOfWeek  Int
+  startTime  String
+  endTime    String
+  createdAt  DateTime        @default(now())
+}
+
+model Booking {
+  id              String          @id @default(cuid())
+  resourceId      String
+  resource        BookingResource @relation(fields: [resourceId], references: [id])
+  clientId        String
+  client          Client          @relation(fields: [clientId], references: [id])
+  startsAt        DateTime
+  endsAt          DateTime
+  customerName    String
+  customerEmail   String
+  customerPhone   String?
+  notes           String?
+  status          String          @default("CONFIRMED")
+  cancelToken     String?         @unique
+  calendarEventId String?
+  meetLink        String?
+  reminderSentAt  DateTime?
+  followUpSentAt  DateTime?
+  createdAt       DateTime        @default(now())
+}
+
+model CalendarConnection {
+  id           String   @id @default(cuid())
+  clientId     String   @unique
+  provider     String
+  accessToken  String
+  refreshToken String
+  expiresAt    DateTime
+  calendarId   String   @default("primary")
+  createdAt    DateTime @default(now())
+
+  client       Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
 }
