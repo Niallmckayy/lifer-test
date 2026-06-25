@@ -117,6 +117,20 @@ export default function BookingFlow({ clientId, clientName, resources }: Props) 
         .bf-slot-btn:active { transform: translateY(0); }
       `}</style>
 
+      {/* Back to site */}
+      <button
+        onClick={() => {
+          try { (window.top ?? window).history.back() } catch { window.history.back() }
+        }}
+        className="flex items-center gap-1.5 text-xs mb-6 transition-opacity hover:opacity-70"
+        style={{ color: 'var(--bp-text-muted)' }}
+      >
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M9 2L4 7l5 5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        Back to site
+      </button>
+
       {/* Header */}
       <div className="mb-8 text-center">
         <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--bp-text-muted)' }}>
