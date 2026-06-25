@@ -7,14 +7,16 @@ export type PageCount  = { page: string; count: number }
 export type RefCount   = { referrer: string; count: number }
 
 export type AnalyticsData = {
-  totalVisits:   number
+  totalVisits:    number
   totalPageviews: number
-  avgDuration:   number
-  bookingClicks: number
-  bookingRate:   number
-  dailyVisits:   DailyCount[]
-  topPages:      PageCount[]
-  topReferrers:  RefCount[]
+  avgDuration:    number
+  bookingCount:   number
+  upcomingCount:  number
+  topResource:    string | null
+  bookingRate:    number
+  dailyVisits:    DailyCount[]
+  topPages:       PageCount[]
+  topReferrers:   RefCount[]
 }
 
 export async function getWebsiteAnalytics(
@@ -31,7 +33,6 @@ export async function getWebsiteAnalytics(
 
   const pageviews  = events.filter(e => e.type === 'pageview')
   const durations  = events.filter(e => e.type === 'duration' && e.duration != null)
-  const bookings   = events.filter(e => e.type === 'booking_click')
 
   const uniqueSessions = new Set(pageviews.map(e => e.sessionId))
   const totalVisits    = uniqueSessions.size
@@ -39,8 +40,35 @@ export async function getWebsiteAnalytics(
   const avgDuration    = durations.length
     ? Math.round(durations.reduce((s, e) => s + (e.duration ?? 0), 0) / durations.length)
     : 0
-  const bookingClicks  = bookings.length
-  const bookingRate    = totalVisits > 0 ? Math.round((bookingClicks / totalVisits) * 100) : 0
+
+  // Booking metrics from actual Booking records
+  const now = new Date()
+  const thirtyDaysAhead = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+
+  const periodBookings = await prisma.booking.findMany({
+    where: {
+      client: { website: { id: websiteId } },
+      status: 'CONFIRMED',
+      startsAt: { gte: since },
+    },
+    select: { resource: { select: { name: true } } },
+  })
+
+  const upcomingCount = await prisma.booking.count({
+    where: {
+      client: { website: { id: websiteId } },
+      status: 'CONFIRMED',
+      startsAt: { gte: now, lte: thirtyDaysAhead },
+    },
+  })
+
+  const bookingCount = periodBookings.length
+  const resourceTally = new Map<string, number>()
+  for (const b of periodBookings) resourceTally.set(b.resource.name, (resourceTally.get(b.resource.name) ?? 0) + 1)
+  const topResource = resourceTally.size > 0
+    ? [...resourceTally.entries()].sort((a, b) => b[1] - a[1])[0][0]
+    : null
+  const bookingRate = totalVisits > 0 ? Math.round((bookingCount / totalVisits) * 100) : 0
 
   // Daily visits (unique sessions per day)
   const dailyMap = new Map<string, Set<string>>()
@@ -76,5 +104,5 @@ export async function getWebsiteAnalytics(
     .slice(0, 10)
     .map(([referrer, count]) => ({ referrer, count }))
 
-  return { totalVisits, totalPageviews, avgDuration, bookingClicks, bookingRate, dailyVisits, topPages, topReferrers }
+  return { totalVisits, totalPageviews, avgDuration, bookingCount, upcomingCount, topResource, bookingRate, dailyVisits, topPages, topReferrers }
 }

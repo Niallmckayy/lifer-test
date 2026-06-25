@@ -156,11 +156,18 @@ export default async function AnalyticsPage({
         ) : (
           <>
             {/* Stat cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 32 }}>
-              <StatCard label="Unique visitors"  value={data.totalVisits}                        sub={`last ${days} days`} />
-              <StatCard label="Page views"       value={data.totalPageviews}                     sub="total" />
-              <StatCard label="Avg session"      value={formatDuration(data.avgDuration)}        sub="time on site" />
-              <StatCard label="Booking interest" value={`${data.bookingRate}%`}                  sub={`${data.bookingClicks} clicks`} />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 12 }}>
+              <StatCard label="Unique visitors"  value={data.totalVisits}                 sub={`last ${days} days`} />
+              <StatCard label="Page views"       value={data.totalPageviews}              sub="total" />
+              <StatCard label="Avg session"      value={formatDuration(data.avgDuration)} sub="time on site" />
+              <StatCard label="Conversion rate"  value={`${data.bookingRate}%`}           sub={`${data.bookingCount} booking${data.bookingCount !== 1 ? 's' : ''} from ${data.totalVisits} visitors`} />
+            </div>
+
+            {/* Booking cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 32 }}>
+              <StatCard label="Bookings this period" value={data.bookingCount}       sub={`last ${days} days`} />
+              <StatCard label="Upcoming bookings"    value={data.upcomingCount}      sub="next 30 days" />
+              <StatCard label="Top service"          value={data.topResource ?? '—'} sub="most booked" />
             </div>
 
             {/* Daily chart */}
