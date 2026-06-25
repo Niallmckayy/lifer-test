@@ -70,18 +70,6 @@ const navItems = [
       </svg>
     ),
   },
-  {
-    label: 'My Project',
-    href: '/dashboard/customer/project',
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <rect x="1.5" y="2.5" width="13" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.25" />
-        <path d="M1.5 5.5h13" stroke="currentColor" strokeWidth="1.25" />
-        <circle cx="4" cy="4" r=".75" fill="currentColor" />
-        <circle cx="6.5" cy="4" r=".75" fill="currentColor" />
-      </svg>
-    ),
-  },
 ]
 
 export default function CustomerSidebar({ email }: { email: string }) {
