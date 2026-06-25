@@ -72,7 +72,7 @@ export default function CustomerDashboardClient({
   const iframeSrc =
     activeMode === 'draft'
       ? (draftPreviewUrl ?? internalDraftUrl)
-      : (hasHtmlContent ? internalLiveUrl : (externalUrl ?? internalLiveUrl))
+      : (externalUrl ?? (hasHtmlContent ? internalLiveUrl : internalLiveUrl))
 
   const atLimit = usedRequests >= requestLimit
   const pct = Math.min((usedRequests / requestLimit) * 100, 100)

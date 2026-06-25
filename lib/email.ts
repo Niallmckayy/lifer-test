@@ -6,6 +6,28 @@ function getResend() {
 
 const FROM = () => process.env.RESEND_FROM_EMAIL ?? 'updates@example.com'
 
+export async function sendGoLiveEmail(
+  to: string,
+  name: string,
+  billingUrl: string,
+): Promise<void> {
+  await getResend().emails.send({
+    from: FROM(),
+    to,
+    subject: 'Your site is ready — start your free trial',
+    text: [
+      `Hi ${name},`,
+      ``,
+      `Your site is built and ready to go live.`,
+      ``,
+      `Start your 14-day free trial — no charge until day 14:`,
+      billingUrl,
+      ``,
+      `Studio`,
+    ].join('\n'),
+  })
+}
+
 export async function sendDraftReadyEmail(
   to: string,
   clientName: string,
@@ -142,6 +164,17 @@ export async function sendBookingConfirmationEmail(params: ConfirmationParams): 
   const outlook   = outlookCalendarLink({ title, startsAt: params.startsAt, endsAt: params.endsAt })
   const mType     = params.meetingType ?? 'in_person'
 
+  const locationLine = (() => {
+    if (mType === 'virtual' && params.meetLink) return `<p style="margin:4px 0">Join Google Meet: <a href="${params.meetLink}" style="color:#d4830c">${params.meetLink}</a></p>`
+    if (mType === 'virtual') return `<p style="margin:4px 0">A Google Meet link will follow shortly.</p>`
+    if (mType === 'phone') return `<p style="margin:4px 0">We&apos;ll call you at the time of your booking.</p>`
+    if (mType === 'in_person' && params.location) {
+      const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(params.location)}`
+      return `<p style="margin:4px 0">Location: ${params.location} &mdash; <a href="${mapsUrl}" style="color:#d4830c">Get directions</a></p>`
+    }
+    return ''
+  })()
+
   await getResend().emails.send({
     from: FROM(),
     to: params.to,
@@ -164,6 +197,27 @@ export async function sendBookingConfirmationEmail(params: ConfirmationParams): 
       ``,
       `See you then.`,
     ].join('\n'),
+    html: `
+      <div style="font-family:sans-serif;font-size:14px;color:#1a1a1a;max-width:480px">
+        <p>Hi ${params.customerName},</p>
+        <p>Your booking is confirmed.</p>
+        <div style="background:#f9f6f1;border-radius:8px;padding:16px 20px;margin:16px 0">
+          <p style="margin:0 0 4px;font-weight:600">${title}</p>
+          <p style="margin:4px 0;color:#555">${startStr} &ndash; ${endStr}</p>
+          ${locationLine}
+        </div>
+        <p style="margin:16px 0 6px">Add to your calendar:</p>
+        <p style="margin:4px 0">
+          <a href="${gcal}" style="color:#d4830c;text-decoration:none;font-weight:500">Add to Google Calendar</a>
+          &nbsp;&nbsp;·&nbsp;&nbsp;
+          <a href="${outlook}" style="color:#d4830c;text-decoration:none;font-weight:500">Add to Outlook Calendar</a>
+        </p>
+        <p style="margin:20px 0 4px;color:#555;font-size:13px">
+          Need to cancel? <a href="${cancelUrl}" style="color:#d4830c">Cancel this booking</a> (up to the time of your booking).
+        </p>
+        <p>See you then.</p>
+      </div>
+    `,
   })
 }
 

@@ -136,6 +136,18 @@ export async function updateBookingResource(
   return {}
 }
 
+export async function activateBookingResource(resourceId: string): Promise<{ error?: string }> {
+  const resource = await prisma.bookingResource.findUnique({ where: { id: resourceId } })
+  if (!resource) return { error: 'Resource not found.' }
+
+  try { await requireAdminOrOwner(resource.clientId) } catch { return { error: 'Unauthorised.' } }
+
+  await prisma.bookingResource.update({ where: { id: resourceId }, data: { active: true } })
+  revalidatePath('/dashboard/admin')
+  revalidatePath('/dashboard/customer/bookings')
+  return {}
+}
+
 export async function deactivateBookingResource(resourceId: string): Promise<{ error?: string }> {
   const resource = await prisma.bookingResource.findUnique({ where: { id: resourceId } })
   if (!resource) return { error: 'Resource not found.' }

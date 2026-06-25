@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
 import { getBillingData } from '@/lib/actions'
 import BillingPortalButton from './BillingPortalButton'
+import CheckoutButton from './CheckoutButton'
 
 const statusStyle: Record<string, { bg: string; color: string }> = {
   active:   { bg: 'rgba(77,158,58,0.12)',   color: '#6dbf56' },
@@ -77,19 +78,7 @@ export default async function BillingPage() {
         {billing.stripeCustomerId ? (
           <BillingPortalButton userId={session.user.id} />
         ) : (
-          <div
-            className="px-6 py-5 text-center"
-            style={{
-              background: 'rgba(245,232,208,0.03)',
-              borderRadius: '16px',
-              border: '1px solid rgba(245,232,208,0.07)',
-            }}
-          >
-            <p className="text-sm font-medium" style={{ color: '#f5e8d0' }}>Contact us to manage your plan</p>
-            <p className="text-xs mt-1" style={{ color: 'rgba(245,232,208,0.35)' }}>
-              Reach out and we&apos;ll sort out your billing.
-            </p>
-          </div>
+          <CheckoutButton userId={session.user.id} />
         )}
 
       </div>

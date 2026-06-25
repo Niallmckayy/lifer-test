@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import {
   createBookingResource,
   updateBookingResource,
+  activateBookingResource,
   deactivateBookingResource,
   setAvailabilityRules,
 } from '@/lib/booking-actions'
@@ -55,6 +56,8 @@ export default function ResourceManager({
 }) {
   const [resources, setResources]   = useState<Resource[]>(initial)
   const [showAdd, setShowAdd]       = useState(false)
+  const [addStep, setAddStep]       = useState<'details' | 'availability'>('details')
+  const [addAvail, setAddAvail]     = useState<Availability[]>(emptyAvailability())
   const [editingId, setEditingId]   = useState<string | null>(null)
   const [availId, setAvailId]       = useState<string | null>(null)
   const [error, setError]           = useState<string | null>(null)
@@ -121,6 +124,15 @@ export default function ResourceManager({
     }))
   }
 
+  function resetAddForm() {
+    setShowAdd(false)
+    setAddStep('details')
+    setAddAvail(emptyAvailability())
+    setAddName(''); setAddDesc(''); setAddDuration(60); setAddBuffer(0); setAddCapacity(1)
+    setAddTimezone('Europe/London'); setAddColor(''); setAddMeetingType('in_person')
+    setAddLocation(''); setAddReminders(true); setAddFollowUp(false)
+  }
+
   async function handleAdd() {
     setError(null)
     start(async () => {
@@ -132,19 +144,20 @@ export default function ResourceManager({
         sendReminders: addReminders, sendFollowUp: addFollowUp,
       })
       if (r.error) { setError(r.error); return }
+
+      const av = await setAvailabilityRules(r.id!, addAvail)
+      if (av.error) { setError(av.error); return }
+
       const newRes: Resource = {
         id: r.id!, name: addName, description: addDesc || null,
         slotDuration: addDuration, bufferTime: addBuffer, maxCapacity: addCapacity,
         timezone: addTimezone, color: addColor || null,
         meetingType: addMeetingType, location: addLocation || null,
         sendReminders: addReminders, sendFollowUp: addFollowUp,
-        active: true, availability: [],
+        active: true, availability: addAvail,
       }
       setResources(prev => [...prev, newRes])
-      setShowAdd(false)
-      setAddName(''); setAddDesc(''); setAddDuration(60); setAddBuffer(0); setAddCapacity(1)
-      setAddTimezone('Europe/London'); setAddColor(''); setAddMeetingType('in_person')
-      setAddLocation(''); setAddReminders(true); setAddFollowUp(false)
+      resetAddForm()
     })
   }
 
@@ -180,6 +193,15 @@ export default function ResourceManager({
       if (r.error) { setError(r.error); return }
       setResources(prev => prev.map(res => res.id === resourceId ? { ...res, availability: rules } : res))
       setAvailId(null)
+    })
+  }
+
+  async function handleActivate(resourceId: string) {
+    setError(null)
+    start(async () => {
+      const r = await activateBookingResource(resourceId)
+      if (r.error) { setError(r.error); return }
+      setResources(prev => prev.map(res => res.id === resourceId ? { ...res, active: true } : res))
     })
   }
 
@@ -242,7 +264,7 @@ export default function ResourceManager({
                       <Btn danger onClick={() => handleDeactivate(r.id)} disabled={pending}>Deactivate</Btn>
                     </>
                   )}
-                  {!r.active && <span className="text-xs" style={{ color: 'rgba(255,255,255,0.2)' }}>inactive</span>}
+                  {!r.active && <Btn onClick={() => handleActivate(r.id)} disabled={pending}>Activate</Btn>}
                 </div>
               </div>
               <div className="flex flex-wrap gap-3 text-xs mt-2" style={{ color: 'rgba(255,255,255,0.35)' }}>
@@ -279,27 +301,53 @@ export default function ResourceManager({
       {/* Add resource */}
       {showAdd ? (
         <div className="px-5 py-4" style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '14px', border: '1px solid rgba(212,131,12,0.2)' }}>
-          <p className="text-sm font-semibold text-white mb-4">New unit</p>
-          <ResourceForm
-            state={{ name: addName, description: addDesc, slotDuration: addDuration, bufferTime: addBuffer, maxCapacity: addCapacity, timezone: addTimezone, color: addColor, meetingType: addMeetingType, location: addLocation, sendReminders: addReminders, sendFollowUp: addFollowUp }}
-            onChange={patch => {
-              if (patch.name !== undefined) setAddName(patch.name)
-              if (patch.description !== undefined) setAddDesc(patch.description)
-              if (patch.slotDuration !== undefined) setAddDuration(patch.slotDuration)
-              if (patch.bufferTime !== undefined) setAddBuffer(patch.bufferTime)
-              if (patch.maxCapacity !== undefined) setAddCapacity(patch.maxCapacity)
-              if (patch.timezone !== undefined) setAddTimezone(patch.timezone)
-              if (patch.color !== undefined) setAddColor(patch.color)
-              if (patch.meetingType !== undefined) setAddMeetingType(patch.meetingType)
-              if (patch.location !== undefined) setAddLocation(patch.location)
-              if (patch.sendReminders !== undefined) setAddReminders(patch.sendReminders)
-              if (patch.sendFollowUp !== undefined) setAddFollowUp(patch.sendFollowUp)
-            }}
-            onSave={handleAdd}
-            onCancel={() => setShowAdd(false)}
-            pending={pending}
-            label="Create unit"
-          />
+          <div className="flex items-center gap-2 mb-4">
+            <p className="text-sm font-semibold text-white">New unit</p>
+            <span className="text-xs" style={{ color: 'rgba(255,255,255,0.25)' }}>
+              — step {addStep === 'details' ? '1' : '2'} of 2: {addStep === 'details' ? 'Details' : 'Availability'}
+            </span>
+          </div>
+          {addStep === 'details' ? (
+            <ResourceForm
+              state={{ name: addName, description: addDesc, slotDuration: addDuration, bufferTime: addBuffer, maxCapacity: addCapacity, timezone: addTimezone, color: addColor, meetingType: addMeetingType, location: addLocation, sendReminders: addReminders, sendFollowUp: addFollowUp }}
+              onChange={patch => {
+                if (patch.name !== undefined) setAddName(patch.name)
+                if (patch.description !== undefined) setAddDesc(patch.description)
+                if (patch.slotDuration !== undefined) setAddDuration(patch.slotDuration)
+                if (patch.bufferTime !== undefined) setAddBuffer(patch.bufferTime)
+                if (patch.maxCapacity !== undefined) setAddCapacity(patch.maxCapacity)
+                if (patch.timezone !== undefined) setAddTimezone(patch.timezone)
+                if (patch.color !== undefined) setAddColor(patch.color)
+                if (patch.meetingType !== undefined) setAddMeetingType(patch.meetingType)
+                if (patch.location !== undefined) setAddLocation(patch.location)
+                if (patch.sendReminders !== undefined) setAddReminders(patch.sendReminders)
+                if (patch.sendFollowUp !== undefined) setAddFollowUp(patch.sendFollowUp)
+              }}
+              onSave={() => setAddStep('availability')}
+              onCancel={resetAddForm}
+              pending={pending}
+              label="Next: set availability →"
+            />
+          ) : (
+            <AvailabilityForm
+              rules={addAvail}
+              onToggle={dow => {
+                const has = addAvail.some(a => a.dayOfWeek === dow)
+                setAddAvail(has
+                  ? addAvail.filter(a => a.dayOfWeek !== dow)
+                  : [...addAvail, { dayOfWeek: dow, startTime: '09:00', endTime: '17:00' }].sort((a, b) => a.dayOfWeek - b.dayOfWeek)
+                )
+              }}
+              onTimeChange={(dow, field, val) =>
+                setAddAvail(addAvail.map(a => a.dayOfWeek === dow ? { ...a, [field]: val } : a))
+              }
+              onSave={handleAdd}
+              onCancel={() => setAddStep('details')}
+              pending={pending}
+              saveLabel="Create unit"
+              cancelLabel="← Back"
+            />
+          )}
         </div>
       ) : (
         <button
@@ -460,6 +508,7 @@ function MeetingTypeBadge({ meetingType }: { meetingType: string }) {
 
 function AvailabilityForm({
   rules, onToggle, onTimeChange, onSave, onCancel, pending,
+  saveLabel = 'Save availability', cancelLabel = 'Cancel',
 }: {
   rules: Availability[]
   onToggle: (dow: number) => void
@@ -467,6 +516,8 @@ function AvailabilityForm({
   onSave: () => void
   onCancel: () => void
   pending: boolean
+  saveLabel?: string
+  cancelLabel?: string
 }) {
   return (
     <div>
@@ -517,10 +568,10 @@ function AvailabilityForm({
           className="px-4 py-2 text-xs font-semibold"
           style={{ background: '#d4830c', borderRadius: '8px', color: '#fff', opacity: pending ? 0.5 : 1 }}
         >
-          {pending ? '…' : 'Save availability'}
+          {pending ? '…' : saveLabel}
         </button>
         <button onClick={onCancel} className="px-4 py-2 text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
-          Cancel
+          {cancelLabel}
         </button>
       </div>
     </div>

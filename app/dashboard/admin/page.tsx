@@ -9,6 +9,7 @@ import AdminDeploymentForm from './AdminDeploymentForm'
 import AdminImportForm from './AdminImportForm'
 import DeleteClientButton from './DeleteClientButton'
 import AdminResetPasswordButton from './AdminResetPasswordButton'
+import GoLiveInviteButton from './GoLiveInviteButton'
 import SignOutButton from '@/components/ui/SignOutButton'
 import BirdLogo from '@/components/ui/BirdLogo'
 
@@ -186,6 +187,7 @@ export default async function AdminDashboard() {
                   <Th>CMS</Th>
                   <Th>Bookings</Th>
                   <Th>Billing</Th>
+                  <Th>Go Live</Th>
                   <Th>Password</Th>
                   <Th>{''}</Th>
                 </tr>
@@ -289,6 +291,9 @@ export default async function AdminDashboard() {
                         requestLimit={client.requestLimit}
                         subscriptionStatus={(client as { subscriptionStatus?: string | null }).subscriptionStatus ?? null}
                       />
+                    </td>
+                    <td className="px-5 py-4">
+                      <GoLiveInviteButton clientId={client.id} />
                     </td>
                     <td className="px-5 py-4">
                       <AdminResetPasswordButton clientId={client.id} />

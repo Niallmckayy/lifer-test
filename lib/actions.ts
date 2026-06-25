@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import { generateContentUpdate, generateUpdatedBrief, ContentBrief } from '@/lib/claude'
-import { sendDraftReadyEmail, sendDeployedEmail } from '@/lib/email'
+import { sendDraftReadyEmail, sendDeployedEmail, sendGoLiveEmail } from '@/lib/email'
 import { createBranch, commitContent, createPullRequest as ghCreatePR, mergePullRequest as ghMergePR } from '@/lib/github'
 import { waitForPreviewDeployment } from '@/lib/vercel'
 
@@ -930,6 +930,70 @@ export async function createBillingPortalSession(
   } catch (err) {
     console.error('Billing portal error:', err)
     return { error: 'Failed to open billing portal.' }
+  }
+}
+
+// ── Create Stripe checkout session (customer subscribes) ─
+export async function createCheckoutSession(
+  userId: string,
+): Promise<{ url?: string; error?: string }> {
+  const client = await prisma.client.findUnique({ where: { userId } })
+  if (!client) return { error: 'No billing account found.' }
+
+  const c = client as { stripeCustomerId?: string | null; id: string }
+
+  try {
+    const Stripe = (await import('stripe')).default
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '', { apiVersion: '2026-03-25.dahlia' })
+
+    let customerId = c.stripeCustomerId
+    if (!customerId) {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { email: true, name: true },
+      })
+      const customer = await stripe.customers.create({
+        email: user?.email ?? undefined,
+        name:  user?.name  ?? undefined,
+        metadata: { clientId: c.id },
+      })
+      customerId = customer.id
+      await prisma.client.update({ where: { id: c.id }, data: { stripeCustomerId: customerId } })
+    }
+
+    const session = await stripe.checkout.sessions.create({
+      customer: customerId,
+      mode: 'subscription',
+      line_items: [{ price: process.env.STRIPE_PRICE_STARTER ?? '', quantity: 1 }],
+      subscription_data: { trial_period_days: 14 },
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/customer/billing/success`,
+      cancel_url:  `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/customer/billing`,
+    })
+
+    return { url: session.url ?? '' }
+  } catch (err) {
+    console.error('Checkout session error:', err)
+    return { error: 'Failed to create checkout session.' }
+  }
+}
+
+// ── Send go-live invite email (admin action) ──────────────
+export async function sendGoLiveInvite(
+  clientId: string,
+): Promise<{ error?: string }> {
+  const client = await prisma.client.findUnique({
+    where: { id: clientId },
+    include: { user: true },
+  })
+  if (!client) return { error: 'Client not found.' }
+
+  const billingUrl = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/customer/billing`
+  try {
+    await sendGoLiveEmail(client.user.email, client.user.name ?? 'there', billingUrl)
+    return {}
+  } catch (err) {
+    console.error('Go-live invite error:', err)
+    return { error: 'Failed to send invite email.' }
   }
 }
 
