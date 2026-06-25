@@ -950,11 +950,10 @@ export async function createCheckoutSession(
     if (!customerId) {
       const user = await prisma.user.findUnique({
         where: { id: userId },
-        select: { email: true, name: true },
+        select: { email: true },
       })
       const customer = await stripe.customers.create({
         email: user?.email ?? undefined,
-        name:  user?.name  ?? undefined,
         metadata: { clientId: c.id },
       })
       customerId = customer.id
@@ -989,7 +988,7 @@ export async function sendGoLiveInvite(
 
   const billingUrl = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/customer/billing`
   try {
-    await sendGoLiveEmail(client.user.email, client.user.name ?? 'there', billingUrl)
+    await sendGoLiveEmail(client.user.email, client.name ?? 'there', billingUrl)
     return {}
   } catch (err) {
     console.error('Go-live invite error:', err)
