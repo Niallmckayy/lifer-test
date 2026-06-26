@@ -87,10 +87,10 @@ export default async function CustomerOverviewPage() {
 
   return (
     <div className="flex-1 overflow-auto" style={{ background: BG }}>
-      <div style={{ maxWidth: 760, margin: '0 auto', padding: '40px 32px 80px', display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div className="px-4 py-6 md:px-8 md:py-10" style={{ maxWidth: 760, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
 
         {/* ── Welcome ─────────────────────────────────────────── */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 600, color: FG, fontFamily: "'Playfair Display', Georgia, serif", marginBottom: 4 }}>
               Welcome back, {client.name}
@@ -109,7 +109,7 @@ export default async function CustomerOverviewPage() {
         </div>
 
         {/* ── Site card ───────────────────────────────────────── */}
-        <div style={{ background: SURFACE1, border: `1px solid ${BORDER}`, borderRadius: 16, padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4" style={{ background: SURFACE1, border: `1px solid ${BORDER}`, borderRadius: 16, padding: '20px 24px' }}>
           {website ? (
             <>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -145,7 +145,7 @@ export default async function CustomerOverviewPage() {
         </div>
 
         {/* ── Quick stats ─────────────────────────────────────── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <StatCard
             label="Visitors this week"
             value={uniqueVisitors}

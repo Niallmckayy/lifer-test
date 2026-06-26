@@ -64,7 +64,7 @@ export default async function CustomerBookingsPage() {
   const slug       = clientWithTheme?.website?.slug ?? null
 
   return (
-    <div className="flex flex-col gap-10 px-8 py-8 max-w-5xl">
+    <div className="flex flex-col gap-10 px-4 py-6 md:px-8 md:py-8 max-w-5xl w-full">
 
       {/* Section: Bookings calendar */}
       <section>

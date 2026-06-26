@@ -16,9 +16,9 @@ export default async function CustomerLayout({ children }: { children: React.Rea
   const isTrialing = (client as { subscriptionStatus?: string | null } | null)?.subscriptionStatus === 'trialing'
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: '#0e0b07' }}>
+    <div className="flex flex-col md:flex-row h-screen overflow-hidden" style={{ background: '#0e0b07' }}>
       <CustomerSidebar email={user?.email ?? ''} />
-      <main className="flex-1 flex flex-col overflow-y-auto">
+      <main className="flex-1 flex flex-col overflow-y-auto min-h-0">
         {isTrialing && <TrialBanner />}
         {children}
       </main>

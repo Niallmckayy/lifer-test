@@ -118,10 +118,10 @@ export default async function AnalyticsPage({
 
   return (
     <div className="flex-1 overflow-y-auto" style={{ background: BG }}>
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: '40px 32px 80px' }}>
+      <div className="px-4 py-6 md:px-8 md:py-10" style={{ maxWidth: 900, margin: '0 auto' }}>
 
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32 }}>
+        <div className="flex items-center justify-between" style={{ marginBottom: 32 }}>
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 600, color: FG, fontFamily: "'Playfair Display', Georgia, serif", marginBottom: 4 }}>
               Analytics
@@ -156,7 +156,7 @@ export default async function AnalyticsPage({
         ) : (
           <>
             {/* Stat cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 12 }}>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3" style={{ marginBottom: 12 }}>
               <StatCard label="Unique visitors"  value={data.totalVisits}                 sub={`last ${days} days`} />
               <StatCard label="Page views"       value={data.totalPageviews}              sub="total" />
               <StatCard label="Avg session"      value={formatDuration(data.avgDuration)} sub="time on site" />
@@ -164,7 +164,7 @@ export default async function AnalyticsPage({
             </div>
 
             {/* Booking cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 32 }}>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" style={{ marginBottom: 32 }}>
               <StatCard label="Bookings this period" value={data.bookingCount}       sub={`last ${days} days`} />
               <StatCard label="Upcoming bookings"    value={data.upcomingCount}      sub="next 30 days" />
               <StatCard label="Top service"          value={data.topResource ?? '—'} sub="most booked" />
@@ -189,7 +189,7 @@ export default async function AnalyticsPage({
             </div>
 
             {/* Tables */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
               {/* Top pages */}
               <div style={{ background: SURFACE1, border: `1px solid ${BORDER}`, borderRadius: 16, padding: 24 }}>

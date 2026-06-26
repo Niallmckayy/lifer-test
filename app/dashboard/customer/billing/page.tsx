@@ -21,7 +21,7 @@ export default async function BillingPage() {
   const s = statusStyle[billing.subscriptionStatus ?? ''] ?? statusStyle.active
 
   return (
-    <div className="flex-1 overflow-auto px-8 py-8" style={{ background: '#0e0b07' }}>
+    <div className="flex-1 overflow-auto px-4 py-6 md:px-8 md:py-8" style={{ background: '#0e0b07' }}>
       <div className="max-w-xl mx-auto flex flex-col gap-6">
 
         <div>

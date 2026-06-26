@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useState } from 'react'
 import BirdLogo from '@/components/ui/BirdLogo'
 import SignOutButton from '@/components/ui/SignOutButton'
 
@@ -72,7 +73,7 @@ const navItems = [
   },
 ]
 
-export default function CustomerSidebar({ email }: { email: string }) {
+function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname()
 
   function isActive(href: string) {
@@ -81,56 +82,141 @@ export default function CustomerSidebar({ email }: { email: string }) {
   }
 
   return (
-    <aside
-      className="w-60 shrink-0 flex flex-col h-full"
-      style={{ background: '#141008', borderRight: '1px solid rgba(212,131,12,0.1)' }}
-    >
-      {/* Logo */}
-      <div className="px-5 py-5 flex items-center gap-2.5" style={{ borderBottom: '1px solid rgba(245,232,208,0.06)' }}>
-        <span style={{ color: '#d4830c' }}><BirdLogo size={20} /></span>
-        <span
-          className="text-base font-semibold"
-          style={{ fontFamily: "'Playfair Display', Georgia, serif", color: '#f5e8d0' }}
-        >
-          Lifer
-        </span>
-      </div>
+    <nav className="flex flex-col gap-1 px-3 py-4 flex-1">
+      {navItems.map(item => {
+        const active = isActive(item.href)
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            onClick={onNavigate}
+            className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-all${active ? '' : ' nav-item'}`}
+            style={{
+              borderRadius: '10px',
+              background: active ? 'rgba(212,131,12,0.12)' : 'transparent',
+              color: active ? '#e8a020' : 'rgba(245,232,208,0.4)',
+            }}
+          >
+            <span style={{ color: active ? '#d4830c' : 'rgba(245,232,208,0.3)' }}>
+              {item.icon}
+            </span>
+            {item.label}
+          </Link>
+        )
+      })}
+    </nav>
+  )
+}
 
-      {/* Nav */}
-      <nav className="flex flex-col gap-1 px-3 py-4 flex-1">
-        {navItems.map(item => {
-          const active = isActive(item.href)
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-all${active ? '' : ' nav-item'}`}
-              style={{
-                borderRadius: '10px',
-                background: active ? 'rgba(212,131,12,0.12)' : 'transparent',
-                color: active ? '#e8a020' : 'rgba(245,232,208,0.4)',
-              }}
-            >
-              <span style={{ color: active ? '#d4830c' : 'rgba(245,232,208,0.3)' }}>
-                {item.icon}
-              </span>
-              {item.label}
-            </Link>
-          )
-        })}
-      </nav>
+export default function CustomerSidebar({ email }: { email: string }) {
+  const [open, setOpen] = useState(false)
 
-      {/* Bottom: email + signout */}
-      <div
-        className="px-5 py-4 flex flex-col gap-2"
-        style={{ borderTop: '1px solid rgba(245,232,208,0.06)' }}
+  const logoBlock = (
+    <div className="px-5 py-5 flex items-center gap-2.5" style={{ borderBottom: '1px solid rgba(245,232,208,0.06)' }}>
+      <span style={{ color: '#d4830c' }}><BirdLogo size={20} /></span>
+      <span
+        className="text-base font-semibold"
+        style={{ fontFamily: "'Playfair Display', Georgia, serif", color: '#f5e8d0' }}
       >
-        <span className="text-xs truncate" style={{ color: 'rgba(245,232,208,0.25)' }}>{email}</span>
-        <SignOutButton
-          className="text-xs font-medium text-left transition-opacity hover:opacity-70"
-          style={{ color: 'rgba(245,232,208,0.35)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-        />
+        Lifer
+      </span>
+    </div>
+  )
+
+  const bottomBlock = (
+    <div
+      className="px-5 py-4 flex flex-col gap-2"
+      style={{ borderTop: '1px solid rgba(245,232,208,0.06)' }}
+    >
+      <span className="text-xs truncate" style={{ color: 'rgba(245,232,208,0.25)' }}>{email}</span>
+      <SignOutButton
+        className="text-xs font-medium text-left transition-opacity hover:opacity-70"
+        style={{ color: 'rgba(245,232,208,0.35)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+      />
+    </div>
+  )
+
+  return (
+    <>
+      {/* ── Desktop sidebar ───────────────────────────────────── */}
+      <aside
+        className="hidden md:flex w-60 shrink-0 flex-col h-full"
+        style={{ background: '#141008', borderRight: '1px solid rgba(212,131,12,0.1)' }}
+      >
+        {logoBlock}
+        <NavLinks />
+        {bottomBlock}
+      </aside>
+
+      {/* ── Mobile top bar ────────────────────────────────────── */}
+      <div
+        className="flex md:hidden items-center justify-between px-4 shrink-0"
+        style={{
+          height: 52,
+          background: '#141008',
+          borderBottom: '1px solid rgba(212,131,12,0.1)',
+        }}
+      >
+        <div className="flex items-center gap-2.5">
+          <span style={{ color: '#d4830c' }}><BirdLogo size={18} /></span>
+          <span
+            className="text-base font-semibold"
+            style={{ fontFamily: "'Playfair Display', Georgia, serif", color: '#f5e8d0' }}
+          >
+            Lifer
+          </span>
+        </div>
+        <button
+          onClick={() => setOpen(true)}
+          aria-label="Open menu"
+          style={{ color: 'rgba(245,232,208,0.5)', background: 'none', border: 'none', cursor: 'pointer', padding: 6, lineHeight: 0 }}
+        >
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        </button>
       </div>
-    </aside>
+
+      {/* ── Mobile drawer overlay ─────────────────────────────── */}
+      {open && (
+        <div className="fixed inset-0 z-50 flex md:hidden">
+          <div
+            className="absolute inset-0"
+            style={{ background: 'rgba(0,0,0,0.6)' }}
+            onClick={() => setOpen(false)}
+          />
+          <aside
+            className="relative flex flex-col h-full w-64 shrink-0"
+            style={{ background: '#141008', borderRight: '1px solid rgba(212,131,12,0.1)' }}
+          >
+            <div
+              className="px-5 py-5 flex items-center justify-between"
+              style={{ borderBottom: '1px solid rgba(245,232,208,0.06)' }}
+            >
+              <div className="flex items-center gap-2.5">
+                <span style={{ color: '#d4830c' }}><BirdLogo size={20} /></span>
+                <span
+                  className="text-base font-semibold"
+                  style={{ fontFamily: "'Playfair Display', Georgia, serif", color: '#f5e8d0' }}
+                >
+                  Lifer
+                </span>
+              </div>
+              <button
+                onClick={() => setOpen(false)}
+                aria-label="Close menu"
+                style={{ color: 'rgba(245,232,208,0.4)', background: 'none', border: 'none', cursor: 'pointer', padding: 4, lineHeight: 0 }}
+              >
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                  <path d="M4 4l10 10M14 4L4 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              </button>
+            </div>
+            <NavLinks onNavigate={() => setOpen(false)} />
+            {bottomBlock}
+          </aside>
+        </div>
+      )}
+    </>
   )
 }
