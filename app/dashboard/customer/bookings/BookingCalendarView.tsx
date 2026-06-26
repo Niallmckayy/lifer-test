@@ -93,9 +93,9 @@ export default function BookingCalendarView({ bookings }: Props) {
   const dayBookings = selectedDate ? (byDate.get(selectedDate) ?? []) : []
 
   return (
-    <div className="flex gap-6">
+    <div className="flex flex-col md:flex-row gap-6">
 
-      {/* Left: calendar + selected-day panel */}
+      {/* Calendar + selected-day panel */}
       <div className="flex-1 min-w-0">
 
         {/* Month navigation */}
@@ -208,8 +208,8 @@ export default function BookingCalendarView({ bookings }: Props) {
         )}
       </div>
 
-      {/* Right: upcoming bookings */}
-      <div style={{ width: '220px', flexShrink: 0 }}>
+      {/* Upcoming bookings */}
+      <div className="md:w-55 md:shrink-0">
         <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'rgba(255,255,255,0.25)' }}>
           Upcoming
         </p>

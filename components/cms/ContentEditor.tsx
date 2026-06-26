@@ -98,10 +98,10 @@ export function ContentEditor({ websiteId, schema, initialContent, initialDraft 
     <div className="flex flex-col h-full">
       {/* ── Top bar ─────────────────────────────────────── */}
       <div
-        className="px-8 py-4 flex items-center justify-between shrink-0"
+        className="px-4 py-3 md:px-8 md:py-4 flex items-center justify-between shrink-0 gap-3"
         style={{ borderBottom: '1px solid rgba(245,232,208,0.06)' }}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           <h1
             className="text-lg font-bold"
             style={{ fontFamily: "'Playfair Display', Georgia, serif", color: '#f5e8d0' }}
@@ -152,32 +152,34 @@ export function ContentEditor({ websiteId, schema, initialContent, initialDraft 
         </div>
       )}
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* ── Left: page + section nav ────────────────────── */}
+      <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+        {/* ── Nav: horizontal scroll on mobile, vertical sidebar on desktop ── */}
         <div
-          className="w-52 shrink-0 flex flex-col overflow-y-auto"
-          style={{ borderRight: '1px solid rgba(245,232,208,0.06)', background: 'rgba(245,232,208,0.01)' }}
+          className="shrink-0 md:w-52 flex flex-row md:flex-col overflow-x-auto md:overflow-x-hidden md:overflow-y-auto border-b md:border-b-0 md:border-r"
+          style={{ borderColor: 'rgba(245,232,208,0.06)', background: 'rgba(245,232,208,0.01)' }}
         >
           {pages.map(([pageKey, pageDef]) => (
-            <div key={pageKey}>
-              <button
-                onClick={() => handlePageChange(pageKey)}
-                className="w-full text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider transition-colors"
-                style={{ color: activePage === pageKey ? '#d4830c' : 'rgba(245,232,208,0.25)' }}
-              >
-                {pageDef.label}
-              </button>
+            <div key={pageKey} className="flex flex-row md:flex-col">
+              {pages.length > 1 && (
+                <button
+                  onClick={() => handlePageChange(pageKey)}
+                  className="shrink-0 text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider transition-colors whitespace-nowrap"
+                  style={{ color: activePage === pageKey ? '#d4830c' : 'rgba(245,232,208,0.25)' }}
+                >
+                  {pageDef.label}
+                </button>
+              )}
               {activePage === pageKey && (
-                <div className="flex flex-col">
+                <div className="flex flex-row md:flex-col">
                   {Object.entries(pageDef.sections).map(([secKey, secDef]) => (
                     <button
                       key={secKey}
                       onClick={() => setActiveSection(secKey)}
-                      className="w-full text-left px-5 py-2 text-sm transition-all"
+                      className="shrink-0 text-left px-4 md:px-5 py-3 md:py-2 text-sm transition-all whitespace-nowrap"
                       style={{
                         color: activeSection === secKey ? '#e8a020' : 'rgba(245,232,208,0.4)',
                         background: activeSection === secKey ? 'rgba(212,131,12,0.08)' : 'transparent',
-                        borderLeft: `2px solid ${activeSection === secKey ? '#d4830c' : 'transparent'}`,
+                        borderBottom: `2px solid ${activeSection === secKey ? '#d4830c' : 'transparent'}`,
                       }}
                     >
                       {secDef.label}
@@ -189,8 +191,8 @@ export function ContentEditor({ websiteId, schema, initialContent, initialDraft 
           ))}
         </div>
 
-        {/* ── Right: fields ───────────────────────────────── */}
-        <div className="flex-1 overflow-y-auto px-8 py-6">
+        {/* ── Fields ── */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 md:px-8 md:py-6">
           {sectionDef ? (
             <div className="max-w-2xl flex flex-col gap-5">
               <div>
