@@ -25,6 +25,7 @@ export function ContentEditor({ websiteId, schema, initialContent, initialDraft 
   const [isDirty, setIsDirty] = useState(!!initialDraft)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'published' | 'error'>('idle')
   const [, startTransition] = useTransition()
+  const [fieldsVisible, setFieldsVisible] = useState(true)
 
   function getFieldValue(page: string, section: string, field: string): string {
     const sec = content[page]?.[section]
@@ -86,9 +87,19 @@ export function ContentEditor({ websiteId, schema, initialContent, initialDraft 
     })
   }
 
+  function switchSection(fn: () => void) {
+    setFieldsVisible(false)
+    setTimeout(() => {
+      fn()
+      setFieldsVisible(true)
+    }, 120)
+  }
+
   function handlePageChange(pageKey: string) {
-    setActivePage(pageKey)
-    setActiveSection(Object.keys(schema.pages[pageKey].sections)[0] ?? '')
+    switchSection(() => {
+      setActivePage(pageKey)
+      setActiveSection(Object.keys(schema.pages[pageKey].sections)[0] ?? '')
+    })
   }
 
   const pageDef = schema.pages[activePage]
@@ -174,7 +185,7 @@ export function ContentEditor({ websiteId, schema, initialContent, initialDraft 
                   {Object.entries(pageDef.sections).map(([secKey, secDef]) => (
                     <button
                       key={secKey}
-                      onClick={() => setActiveSection(secKey)}
+                      onClick={() => switchSection(() => setActiveSection(secKey))}
                       className="shrink-0 text-left px-4 md:px-5 py-3 md:py-2 text-sm transition-all whitespace-nowrap"
                       style={{
                         color: activeSection === secKey ? '#e8a020' : 'rgba(245,232,208,0.4)',
@@ -192,7 +203,10 @@ export function ContentEditor({ websiteId, schema, initialContent, initialDraft 
         </div>
 
         {/* ── Fields ── */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 md:px-8 md:py-6">
+        <div
+          className="flex-1 overflow-y-auto px-4 py-4 md:px-8 md:py-6"
+          style={{ opacity: fieldsVisible ? 1 : 0, transition: 'opacity 0.12s ease' }}
+        >
           {sectionDef ? (
             <div className="max-w-2xl flex flex-col gap-5">
               <div>
